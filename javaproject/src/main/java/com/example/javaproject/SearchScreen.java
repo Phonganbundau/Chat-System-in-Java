@@ -22,14 +22,14 @@ public class SearchScreen {
         BorderPane root = new BorderPane();
 
         // Title
-        Label titleLabel = new Label("Tìm kiếm người dùng");
+        Label titleLabel = new Label("Search People");
         titleLabel.setFont(new Font(24));
         titleLabel.setPadding(new Insets(20));
         titleLabel.setAlignment(Pos.CENTER);
 
         // Search Field
         searchField = new TextField();
-        searchField.setPromptText("Nhập tên đăng nhập hoặc tên...");
+        searchField.setPromptText("Enter Username or Fullname...");
         searchField.textProperty().addListener((observable, oldValue, newValue) -> filterSearchResults(newValue));
 
         // Search Results List
@@ -53,7 +53,7 @@ public class SearchScreen {
         // Setting up the scene and stage
         Scene scene = new Scene(root, 600, 500);
         scene.getStylesheets().add(getClass().getResource("/com/example/javaproject/style_for_search.css").toExternalForm());
-        primaryStage.setTitle("Tìm kiếm người dùng");
+        primaryStage.setTitle("Search People");
         primaryStage.setScene(scene);
         primaryStage.show();
     }
@@ -79,7 +79,7 @@ public class SearchScreen {
             System.out.println("Chat started with " + name);
         });
 
-        Button createGroupButton = new Button("Tạo nhóm");
+        Button createGroupButton = new Button("Create Group");
         createGroupButton.setOnAction(e -> {
             System.out.println("Group created with " + name);
         });

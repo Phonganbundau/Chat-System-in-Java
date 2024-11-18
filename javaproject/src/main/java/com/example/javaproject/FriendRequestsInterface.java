@@ -26,12 +26,12 @@ public class FriendRequestsInterface {
         root.getStyleClass().add("root-container");
 
         // Title Label
-        Label titleLabel = new Label("Danh sách yêu cầu kết bạn");
+        Label titleLabel = new Label("Friend Requests");
         titleLabel.getStyleClass().add("title-label");
 
         // Search Field
         searchField = new TextField();
-        searchField.setPromptText("Tìm kiếm...");
+        searchField.setPromptText("Search...");
         searchField.getStyleClass().add("search-field");
         searchField.textProperty().addListener((observable, oldValue, newValue) -> filterFriendRequestsList(newValue));
 
@@ -71,7 +71,7 @@ public class FriendRequestsInterface {
         Label nameLabel = new Label(name);
         nameLabel.getStyleClass().add("name-label");
 
-        Button acceptButton = new Button("Đồng ý");
+        Button acceptButton = new Button("Accept");
         acceptButton.getStyleClass().add("accept-button");
         acceptButton.setOnAction(e -> {
             // Logic to accept friend request
@@ -79,7 +79,7 @@ public class FriendRequestsInterface {
             friendRequestsData.removeIf(item -> ((Label) ((VBox) item.getChildren().get(1)).getChildren().get(0)).getText().equals(name));
         });
 
-        Button rejectButton = new Button("Từ chối");
+        Button rejectButton = new Button("Reject");
         rejectButton.getStyleClass().add("reject-button");
         rejectButton.setOnAction(e -> {
             // Logic to reject friend request

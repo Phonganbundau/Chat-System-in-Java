@@ -6,13 +6,14 @@ import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.image.Image;
-import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.stage.Stage;
 import java.util.Random;
 import java.util.Optional;
+import javafx.scene.text.FontWeight;
+
 
 public class HomePageInterface extends Application {
 
@@ -48,7 +49,7 @@ public class HomePageInterface extends Application {
         signInGrid.setPadding(new Insets(30, 30, 30, 30));
 
         Label signInLabel = new Label("Welcome back! Please login to your account");
-        signInLabel.setFont(Font.font("Arial", 18));
+        signInLabel.setFont(Font.font("Arial",FontWeight.BOLD, 18));
         signInLabel.setTextFill(Color.WHITE);
         signInLabel.setWrapText(true);
         signInGrid.add(signInLabel, 0, 0, 2, 1);
@@ -100,7 +101,7 @@ public class HomePageInterface extends Application {
         signUpGrid.setPadding(new Insets(30, 30, 30, 30));
 
         Label registerLabel = new Label("Create your account");
-        registerLabel.setFont(Font.font("Arial", 18));
+        registerLabel.setFont(Font.font("Arial",FontWeight.BOLD, 18));
         registerLabel.setTextFill(Color.WHITE);
         registerLabel.setWrapText(true);
         signUpGrid.add(registerLabel, 0, 0, 2, 1);

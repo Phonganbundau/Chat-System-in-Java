@@ -23,6 +23,20 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
 
+
+import javafx.scene.control.Alert;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
+import javafx.scene.control.PasswordField;
+import javafx.scene.control.TextField;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
+import javafx.scene.layout.VBox;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+
 public class AccountUpdateScreen {
 
     public static VBox getAccountUpdateLayout() {
@@ -67,16 +81,14 @@ public class AccountUpdateScreen {
         editProfileButton.getStyleClass().add("edit-profile-button");
         editProfileButton.setOnAction(e -> {
             VBox personalInfoForm = getPersonalInfoForm();
-            mainLayout.getChildren().clear();
-            mainLayout.getChildren().add(personalInfoForm);
+            switchToForm(mainLayout, personalInfoForm);
         });
 
         Button changePasswordButton = new Button("Change Password");
         changePasswordButton.getStyleClass().add("change-password-button");
         changePasswordButton.setOnAction(e -> {
             VBox changePasswordForm = getChangePasswordForm();
-            mainLayout.getChildren().clear();
-            mainLayout.getChildren().add(changePasswordForm);
+            switchToForm(mainLayout, changePasswordForm);
         });
 
         buttonBox.getChildren().addAll(editProfileButton, changePasswordButton);
@@ -104,6 +116,26 @@ public class AccountUpdateScreen {
         return mainLayout;
     }
 
+    /**
+     * Chuyển đổi giao diện từ layout hiện tại sang layout mới.
+     *
+     * @param mainLayout Layout chính chứa các thành phần.
+     * @param newForm    Form mới để hiển thị.
+     */
+    private static void switchToForm(VBox mainLayout, VBox newForm) {
+        newForm.setAlignment(Pos.TOP_CENTER);
+        newForm.setPrefWidth(mainLayout.getWidth());
+        mainLayout.getChildren().clear();
+        mainLayout.getChildren().add(newForm);
+    }
+
+    /**
+     * Tạo một mục thông tin trong Info Section.
+     *
+     * @param label Text của nhãn.
+     * @param value Giá trị tương ứng.
+     * @return HBox chứa thông tin.
+     */
     private static HBox createInfoField(String label, String value) {
         Label fieldLabel = new Label(label);
         fieldLabel.getStyleClass().add("info-label");
@@ -116,8 +148,13 @@ public class AccountUpdateScreen {
         return infoField;
     }
 
+    /**
+     * Tạo form chỉnh sửa thông tin cá nhân.
+     *
+     * @return VBox chứa form.
+     */
     private static VBox getPersonalInfoForm() {
-        VBox formLayout = new VBox(10);
+        VBox formLayout = new VBox(15);
         formLayout.setPadding(new Insets(20));
         formLayout.setAlignment(Pos.TOP_LEFT);
         formLayout.getStyleClass().add("form-layout");
@@ -128,27 +165,31 @@ public class AccountUpdateScreen {
         Label fullNameLabel = new Label("Full Name:");
         fullNameLabel.getStyleClass().add("form-label");
         TextField fullNameField = new TextField();
+        fullNameField.setPromptText("Enter your full name");
         fullNameField.getStyleClass().add("form-field");
 
         Label emailLabel = new Label("Email:");
         emailLabel.getStyleClass().add("form-label");
         TextField emailField = new TextField();
+        emailField.setPromptText("Enter your email");
         emailField.getStyleClass().add("form-field");
 
         Label addressLabel = new Label("Address:");
         addressLabel.getStyleClass().add("form-label");
         TextField addressField = new TextField();
+        addressField.setPromptText("Enter your address");
         addressField.getStyleClass().add("form-field");
 
         Label dobLabel = new Label("Date of Birth:");
         dobLabel.getStyleClass().add("form-label");
         TextField dobField = new TextField();
+        dobField.setPromptText("Enter your date of birth (e.g., 7th December, 1994)");
         dobField.getStyleClass().add("form-field");
 
         Button saveButton = new Button("Save Changes");
         saveButton.getStyleClass().add("save-button");
         saveButton.setOnAction(e -> {
-            // Save personal info logic
+            // Lưu thông tin cá nhân logic
             showAlert(Alert.AlertType.INFORMATION, "Saved", "Your information has been updated.");
         });
 
@@ -156,8 +197,13 @@ public class AccountUpdateScreen {
         return formLayout;
     }
 
+    /**
+     * Tạo form thay đổi mật khẩu.
+     *
+     * @return VBox chứa form.
+     */
     private static VBox getChangePasswordForm() {
-        VBox formLayout = new VBox(10);
+        VBox formLayout = new VBox(15);
         formLayout.setPadding(new Insets(20));
         formLayout.setAlignment(Pos.TOP_LEFT);
         formLayout.getStyleClass().add("form-layout");
@@ -168,23 +214,26 @@ public class AccountUpdateScreen {
         Label oldPasswordLabel = new Label("Old Password:");
         oldPasswordLabel.getStyleClass().add("form-label");
         PasswordField oldPasswordField = new PasswordField();
+        oldPasswordField.setPromptText("Enter your old password");
         oldPasswordField.getStyleClass().add("form-field");
 
         Label newPasswordLabel = new Label("New Password:");
         newPasswordLabel.getStyleClass().add("form-label");
         PasswordField newPasswordField = new PasswordField();
+        newPasswordField.setPromptText("Enter your new password");
         newPasswordField.getStyleClass().add("form-field");
 
         Label confirmPasswordLabel = new Label("Confirm Password:");
         confirmPasswordLabel.getStyleClass().add("form-label");
         PasswordField confirmPasswordField = new PasswordField();
+        confirmPasswordField.setPromptText("Confirm your new password");
         confirmPasswordField.getStyleClass().add("form-field");
 
         Button saveButton = new Button("Update Password");
         saveButton.getStyleClass().add("save-button");
         saveButton.setOnAction(e -> {
             if (newPasswordField.getText().equals(confirmPasswordField.getText())) {
-                // Update password logic
+                // Cập nhật mật khẩu logic
                 showAlert(Alert.AlertType.INFORMATION, "Success", "Your password has been updated.");
             } else {
                 showAlert(Alert.AlertType.ERROR, "Error", "Passwords do not match.");
@@ -195,9 +244,17 @@ public class AccountUpdateScreen {
         return formLayout;
     }
 
+    /**
+     * Hiển thị hộp thoại cảnh báo hoặc thông báo.
+     *
+     * @param alertType Loại cảnh báo.
+     * @param title     Tiêu đề hộp thoại.
+     * @param message   Nội dung thông báo.
+     */
     private static void showAlert(Alert.AlertType alertType, String title, String message) {
         Alert alert = new Alert(alertType);
         alert.setTitle(title);
+        alert.setHeaderText(null);
         alert.setContentText(message);
         alert.showAndWait();
     }
