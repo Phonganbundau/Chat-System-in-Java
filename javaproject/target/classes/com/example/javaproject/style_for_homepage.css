@@ -1,0 +1,128 @@
+/* General styles for the background and form elements */
+.root {
+    -fx-background-image: url("file:/C:/Users/Asus/IdeaProjects/javaproject/src/main/resources/com/example/javaproject/home.png");
+    -fx-background-size: cover;
+    -fx-background-position: center;
+    -fx-border-color: transparent;
+}
+
+/* TabPane styling for Sign in and Sign up buttons */
+.tab-pane {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-padding: 0;
+}
+
+.tab-pane .tab-header-area {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-padding: 0;
+}
+
+.tab-pane .tab {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-font-size: 16px;
+    -fx-text-fill: white;
+    -fx-padding: 10px;
+    -fx-background-radius: 0;
+    -fx-min-width: 100px;
+    -fx-focus-color: transparent; /* Xóa hiệu ứng focus */
+    -fx-faint-focus-color: transparent; /* Xóa màu focus mờ */
+    -fx-border-insets: 0;
+    -fx-background-insets: 0;
+}
+
+.tab-pane .tab:selected {
+    -fx-background-color: #007BFF;
+    -fx-text-fill: white;
+    -fx-border-radius: 15;
+    -fx-background-radius: 15;
+    -fx-padding: 10px;
+    -fx-effect: none; /* Xóa hiệu ứng viền */
+    -fx-border-color: transparent; /* Xóa viền mặc định */
+}
+
+.tab-pane .tab:selected:focused {
+    -fx-background-color: #007BFF;
+    -fx-effect: none; /* Xóa hiệu ứng focus */
+    -fx-border-color: transparent; /* Xóa viền focus */
+}
+
+/* Loại bỏ viền của toàn bộ TabPane khi focus */
+.tab-pane:focused {
+    -fx-border-color: transparent;
+    -fx-background-color: transparent;
+}
+
+
+/* Form input fields */
+.text-field, .password-field {
+    -fx-pref-width: 300px;
+    -fx-padding: 10px;
+    -fx-background-radius: 15;
+    -fx-border-radius: 15;
+    -fx-background-color: rgba(255, 255, 255, 0.9);
+    -fx-border-color: transparent;
+}
+
+.text-field:focused, .password-field:focused {
+    -fx-border-color: #007BFF;
+    -fx-background-color: rgba(255, 255, 255, 1);
+}
+
+
+/* Button styles */
+.button {
+    -fx-background-color: #007BFF;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-background-radius: 15;
+    -fx-border-radius: 15;
+    -fx-padding: 10px 20px;
+    -fx-font-size: 14px;
+    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.2), 5, 0.0, 0, 1);
+}
+
+.button:hover {
+    -fx-background-color: #0056b3;
+}
+
+/* Label and text styling */
+.label {
+    -fx-text-fill: white;
+    -fx-font-size: 14px;
+    -fx-min-width: 65px;
+    -fx-max-width: Infinity;
+    -fx-wrap-text: false;
+}
+
+.hyperlink {
+    -fx-text-fill: lightblue;
+    -fx-underline: false;
+    -fx-text-align: right;
+    -fx-translate-x: 70px;
+}
+
+.hyperlink:hover {
+    -fx-text-fill: #007BFF;
+    -fx-underline: true;
+}
+
+/* Checkbox styling */
+.check-box {
+    -fx-text-fill: white;
+    -fx-font-size: 14px;
+}
+
+/* Styling for the 'Remember Me' text specifically */
+.check-box .text {
+    -fx-text-fill: lightgray;
+    -fx-font-size: 13px;
+    -fx-font-style: italic;
+}
+
+/* Additional styles to remove background from TabPane more effectively */
+.tab-pane .tab-header-background {
+    -fx-background-color: transparent;
+}

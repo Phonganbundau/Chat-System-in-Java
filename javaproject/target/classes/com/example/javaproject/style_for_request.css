@@ -1,0 +1,99 @@
+/* Root Container */
+.root-container {
+    -fx-font-family: "Arial";
+    -fx-background-color: #f9f9f9;
+}
+
+/* Title Label */
+.title-label {
+    -fx-font-size: 24px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #333333;
+    -fx-padding: 10 20;
+    -fx-alignment: center;
+}
+
+/* Search Field */
+.search-field {
+    -fx-padding: 10;
+    -fx-background-color: #ffffff;
+    -fx-border-color: #cccccc;
+    -fx-border-radius: 10;
+    -fx-background-radius: 10;
+    -fx-font-size: 14px;
+}
+
+/* Friend Requests List */
+.friend-requests-list {
+    -fx-background-color: #ffffff;
+    -fx-border-color: #dddddd;
+    -fx-border-radius: 10;
+    -fx-background-radius: 10;
+    -fx-padding: 10;
+}
+
+/* Friend Request Items */
+.request-item {
+    -fx-spacing: 15;
+    -fx-padding: 10;
+    -fx-alignment: center-left;
+    -fx-background-color: #ffffff;
+    -fx-border-color: #dddddd;
+    -fx-border-radius: 10;
+    -fx-background-radius: 10;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.1), 4, 0.5, 0, 0);
+}
+
+/* Avatar Style */
+.avatar {
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.2), 5, 0.5, 0, 0);
+    -fx-padding: 5;
+    -fx-border-radius: 50;
+    -fx-background-radius: 50;
+}
+
+/* Name Label */
+.name-label {
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #333333;
+}
+
+/* Buttons */
+.button {
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-padding: 5 15;
+    -fx-border-radius: 10;
+    -fx-background-radius: 10;
+}
+
+/* Accept Button */
+.accept-button {
+    -fx-background-color: #4caf50;
+    -fx-text-fill: white;
+    -fx-border-color: #4caf50;
+}
+
+.accept-button:hover {
+    -fx-background-color: #45a049;
+}
+
+.accept-button:pressed {
+    -fx-background-color: #3e8e41;
+}
+
+/* Reject Button */
+.reject-button {
+    -fx-background-color: #f44336;
+    -fx-text-fill: white;
+    -fx-border-color: #f44336;
+}
+
+.reject-button:hover {
+    -fx-background-color: #e53935;
+}
+
+.reject-button:pressed {
+    -fx-background-color: #d32f2f;
+}

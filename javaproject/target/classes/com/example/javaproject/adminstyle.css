@@ -1,0 +1,130 @@
+/* General Styles */
+.root {
+    -fx-background-color: #e8eef3; /* Nền sáng */
+    -fx-padding: 20px;
+    -fx-font-family: Arial, sans-serif;
+}
+
+/* Section Styling */
+.vbox {
+    -fx-background-color: #ffffff; /* Màu trắng cho các khối */
+    -fx-border-radius: 10px;
+    -fx-background-radius: 10px;
+    -fx-padding: 20px;
+    -fx-effect: dropshadow(three-pass-box, rgba(0, 0, 0, 0.2), 10, 0, 0, 2);
+}
+
+/* Labels */
+.label {
+    -fx-text-fill: #2c3e50; /* Màu chữ tối */
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+}
+
+/* Table View Styling */
+.table-view {
+    -fx-background-color: transparent;
+    -fx-border-color: #dcdde1;
+    -fx-border-radius: 5px;
+    -fx-background-radius: 5px;
+    -fx-padding: 5px;
+}
+
+.table-view .column-header {
+    -fx-background-color: #3498db; /* Màu nền của cột tiêu đề */
+    -fx-text-fill: white; /* Màu chữ */
+    -fx-font-weight: bold;
+    -fx-font-size: 14px;
+}
+
+.table-view .cell {
+    -fx-background-color: #f9f9f9; /* Màu nền ô */
+    -fx-text-fill: #2c3e50; /* Màu chữ */
+    -fx-font-size: 13px;
+    -fx-padding: 5px;
+}
+
+.table-view .cell:selected {
+    -fx-background-color: #3498db; /* Khi được chọn */
+    -fx-text-fill: white;
+}
+
+/* Buttons */
+.admin-button {
+    -fx-min-width: 150px; /* Chiều rộng tối thiểu */
+    -fx-pref-width: 180px; /* Chiều rộng ưu tiên */
+    -fx-padding: 10px 20px; /* Khoảng cách trong nút */
+    -fx-font-size: 14px; /* Kích thước font chữ */
+    -fx-text-alignment: center; /* Căn giữa chữ */
+}
+
+
+.admin-button:hover {
+    -fx-background-color: #2980b9; /* Tối hơn khi hover */
+}
+
+.admin-button:pressed {
+    -fx-background-color: #1f618d; /* Màu tối hơn khi nhấn */
+}
+
+/* TextField and ComboBox */
+.text-field, .combo-box {
+    -fx-padding: 10px;
+    -fx-background-color: #ffffff;
+    -fx-border-color: #dcdde1;
+    -fx-border-radius: 5px;
+    -fx-background-radius: 5px;
+    -fx-font-size: 14px;
+}
+
+.text-field:focused, .combo-box:focused {
+    -fx-border-color: #3498db;
+}
+
+/* Charts */
+.chart {
+    -fx-background-color: #ffffff;
+    -fx-border-color: #dcdde1;
+    -fx-border-radius: 10px;
+    -fx-background-radius: 10px;
+}
+
+.axis-label {
+    -fx-text-fill: #2c3e50;
+    -fx-font-size: 14px;
+}
+
+.chart-title {
+    -fx-text-fill: #2c3e50;
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
+}
+
+/* Dialog Styling */
+.dialog-pane {
+    -fx-background-color: #ffffff;
+    -fx-border-radius: 10px;
+    -fx-padding: 20px;
+}
+
+.dialog-pane .header-panel {
+    -fx-background-color: #3498db; /* Màu tiêu đề dialog */
+    -fx-text-fill: white;
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+}
+
+.dialog-pane .content {
+    -fx-font-size: 14px;
+    -fx-text-fill: #2c3e50;
+}
+
+.dialog-pane .button-bar .button {
+    -fx-background-color: #3498db;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+}
+
+.dialog-pane .button-bar .button:hover {
+    -fx-background-color: #2980b9;
+}
