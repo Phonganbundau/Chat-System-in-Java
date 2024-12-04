@@ -1,6 +1,6 @@
 /* General styles for the background and form elements */
 .root {
-    -fx-background-image: url("file:/C:/Users/Asus/IdeaProjects/javaproject/src/main/resources/com/example/javaproject/home.png");
+    -fx-background-image: url("/src/main/resources/com/example/javaproject/home.png");
     -fx-background-size: cover;
     -fx-background-position: center;
     -fx-border-color: transparent;
