@@ -3,6 +3,8 @@ package com.example.javaproject;
 import javafx.application.Application;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import java.util.Collections;
+import org.bson.types.ObjectId;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
@@ -15,7 +17,18 @@ import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
+import javafx.beans.property.SimpleStringProperty;
 import javafx.stage.Stage;
+import java.util.List;
+import java.util.ArrayList;
+import java.time.format.DateTimeFormatter;
+import java.time.LocalDate;
+import java.util.Date;
+import java.time.ZoneId;
+import javafx.beans.property.SimpleIntegerProperty;
+
+
+
 
 import java.util.Optional;
 
@@ -32,8 +45,8 @@ public class AdminPanelInterface extends Application {
     private ObservableList<SpamReport> spamReportData;
     private TableView<SpamReport> spamReportTable;
 
-    private ObservableList<NewUser> newUserData;
-    private TableView<NewUser> newUserTable;
+    private ObservableList<User> newUserData;
+    private TableView<User> newUserTable;
 
     private ObservableList<UserWithFriends> userWithFriendsData;
     private TableView<UserWithFriends> userWithFriendsTable;
@@ -56,6 +69,9 @@ public class AdminPanelInterface extends Application {
         Tab userActivityTab = new Tab("Hoạt động Người dùng", createUserActivityContent());
         userActivityTab.setClosable(false);
 
+        Tab loginHistoryTab = new Tab("Lịch Sử Đăng Nhập", createUserActivityContent());
+        loginHistoryTab.setClosable(false);
+
         Tab chatGroupsTab = new Tab("Quản lý Nhóm Chat", createChatGroupsContent());
         chatGroupsTab.setClosable(false);
 
@@ -71,6 +87,7 @@ public class AdminPanelInterface extends Application {
         // Thêm tất cả các tab vào TabPane
         tabPane.getTabs().addAll(
                 userManagementTab,
+                loginHistoryTab,
                 userActivityTab,
                 chatGroupsTab,
                 spamReportsTab,
@@ -130,8 +147,7 @@ public class AdminPanelInterface extends Application {
         Label userManagementLabel = new Label("Quản lý Người dùng");
         userManagementLabel.setFont(Font.font("Arial", FontWeight.BOLD, 20));
         userManagementLabel.setTextFill(Color.DARKSLATEGRAY);
-
-        // Bộ lọc cho Quản lý Người dùng
+// Bộ lọc cho Quản lý Người dùng
         HBox userFilterBox = new HBox(10);
         userFilterBox.setAlignment(Pos.CENTER_LEFT);
         TextField filterUsernameField = new TextField();
@@ -146,7 +162,7 @@ public class AdminPanelInterface extends Application {
         applyUserFilterButton.setOnAction(e -> applyUserFilter(filterUsernameField.getText(), filterFullNameField.getText(), filterStatusComboBox.getValue()));
         userFilterBox.getChildren().addAll(filterUsernameField, filterFullNameField, filterStatusComboBox, applyUserFilterButton);
 
-        // Bảng hiển thị thông tin người dùng
+// Bảng hiển thị thông tin người dùng
         userTable = new TableView<>();
         userTable.setStyle("-fx-background-radius: 10; -fx-border-radius: 10;");
         userTable.setPrefHeight(300);
@@ -170,19 +186,29 @@ public class AdminPanelInterface extends Application {
         TableColumn<User, String> genderColumn = new TableColumn<>("Giới tính");
         genderColumn.setCellValueFactory(new PropertyValueFactory<>("gender"));
 
+// Cột "Bạn bè trực tiếp" - số lượng bạn bè
         TableColumn<User, Integer> directFriendsColumn = new TableColumn<>("Bạn bè trực tiếp");
-        directFriendsColumn.setCellValueFactory(new PropertyValueFactory<>("directFriends"));
+        directFriendsColumn.setCellValueFactory(user -> new SimpleIntegerProperty(user.getValue().getDirectFriends()).asObject());
 
-        TableColumn<User, Integer> totalFriendsColumn = new TableColumn<>("Tổng bạn bè");
-        totalFriendsColumn.setCellValueFactory(new PropertyValueFactory<>("totalFriends"));
+// Cột "Số lượng bạn của bạn"
+        TableColumn<User, Integer> totalFriendsColumn = new TableColumn<>("Số lượng bạn của bạn");
+        totalFriendsColumn.setCellValueFactory(user -> {
+            MongoDBConnection mongoDBConnection = new MongoDBConnection();
+            return new SimpleIntegerProperty(user.getValue().getTotalFriends(mongoDBConnection)).asObject();
+        });
 
         userTable.getColumns().addAll(usernameColumn, fullNameColumn, emailColumn, addressColumn, birthDateColumn, genderColumn, directFriendsColumn, totalFriendsColumn);
 
-        userData = FXCollections.observableArrayList(
-                new User("john_doe", "John Doe", "johndoe@example.com", "123 Main St", "1990-05-20", "Male", 5, 15),
-                new User("jane_smith", "Jane Smith", "janesmith@example.com", "456 Oak St", "1992-08-15", "Female", 3, 10)
-        );
+        MongoDBConnection mongoDBConnection = new MongoDBConnection();
+        List<User> usersFromDB = mongoDBConnection.fetchUsers();
+        mongoDBConnection.close();
+
+// Chuyển đổi List<User> thành ObservableList
+        ObservableList<User> userData = FXCollections.observableArrayList(usersFromDB);
+
+// Cập nhật bảng userTable với dữ liệu lấy từ MongoDB
         userTable.setItems(userData);
+
 
         // Hành động người dùng
         HBox userActionsBox = new HBox(15);
@@ -210,12 +236,38 @@ public class AdminPanelInterface extends Application {
         showActiveUsersChartButton.getStyleClass().add("admin-button");
 
         addUserButton.setOnAction(e -> addUser());
+        updateUserButton.setOnAction(e -> {
+            // Lấy người dùng đã chọn từ bảng
+            User selectedUser = userTable.getSelectionModel().getSelectedItem();
+            if (selectedUser != null) {
+                // Hiển thị cửa sổ cập nhật người dùng và điền thông tin đã chọn vào các trường nhập liệu
+                updateUser(selectedUser);
+            } else {
+                // Nếu không có người dùng nào được chọn, hiển thị thông báo
+                showAlert("Thông báo", "Vui lòng chọn người dùng cần cập nhật!", Alert.AlertType.WARNING);
+            }
+        });
+
+        deleteUserButton.setOnAction(e -> {
+            // Lấy người dùng đã chọn từ bảng
+            User selectedUser = userTable.getSelectionModel().getSelectedItem();
+            if (selectedUser != null) {
+                // Hiển thị thông báo xác nhận xóa người dùng
+                showDeleteUserConfirmationDialog(selectedUser);
+            } else {
+                // Nếu không có người dùng nào được chọn, hiển thị thông báo
+                showAlert("Thông báo", "Vui lòng chọn người dùng cần xóa!", Alert.AlertType.WARNING);
+            }
+        });
+
+
         updatePasswordButton.setOnAction(e -> {
             User selectedUser = userTable.getSelectionModel().getSelectedItem();
             if (selectedUser != null) {
                 showUpdatePasswordDialog(selectedUser);
             }
         });
+
         lockUserButton.setOnAction(e -> {
             User selectedUser = userTable.getSelectionModel().getSelectedItem();
             if (selectedUser != null) {
@@ -228,6 +280,14 @@ public class AdminPanelInterface extends Application {
                 showFriendsList(selectedUser);
             }
         });
+
+        viewLoginHistoryButton.setOnAction(e -> {
+            User selectedUser = userTable.getSelectionModel().getSelectedItem();
+            if (selectedUser != null) {
+                //showLoginHistory(selectedUser);
+            }
+        });
+
         showNewUsersChartButton.setOnAction(e -> showNewUsersChart(2024));
         showActiveUsersChartButton.setOnAction(e -> showActiveUsersChart(2024));
 
@@ -323,15 +383,19 @@ public class AdminPanelInterface extends Application {
         TableColumn<ChatGroup, String> groupNameColumn = new TableColumn<>("Tên Nhóm");
         groupNameColumn.setCellValueFactory(new PropertyValueFactory<>("groupName"));
 
-        TableColumn<ChatGroup, String> creationTimeColumn = new TableColumn<>("Thời gian tạo");
+        TableColumn<ChatGroup, Date> creationTimeColumn = new TableColumn<>("Thời gian tạo");
         creationTimeColumn.setCellValueFactory(new PropertyValueFactory<>("creationTime"));
 
         chatGroupTable.getColumns().addAll(groupNameColumn, creationTimeColumn);
 
-        chatGroupData = FXCollections.observableArrayList(
-                new ChatGroup("Nhóm 1", "2023-01-15"),
-                new ChatGroup("Nhóm 2", "2023-03-22")
-        );
+        // Lấy dữ liệu nhóm chat từ MongoDB
+        MongoDBConnection mongoDBConnection = new MongoDBConnection();
+        String sortBy = sortChatGroupComboBox.getValue() != null ? sortChatGroupComboBox.getValue() : "Tên"; // Mặc định là sắp xếp theo tên
+        String filterName = filterChatGroupNameField.getText();
+        List<ChatGroup> chatGroupsFromDB = mongoDBConnection.fetchChatGroups(sortBy, filterName);
+
+        // Chuyển danh sách nhóm chat thành ObservableList và gán vào TableView
+        chatGroupData = FXCollections.observableArrayList(chatGroupsFromDB);
         chatGroupTable.setItems(chatGroupData);
 
         // Hành động cho nhóm chat
@@ -364,6 +428,9 @@ public class AdminPanelInterface extends Application {
         chatGroupsBox.getChildren().addAll(chatGroupsLabel, chatGroupsFilterBox, chatGroupTable, chatGroupActionsBox);
         return chatGroupsBox;
     }
+
+
+
 
     /**
      * Tạo nội dung cho tab Báo cáo Spam.
@@ -409,21 +476,30 @@ public class AdminPanelInterface extends Application {
         spamReportTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
 
         TableColumn<SpamReport, String> reportTimeColumn = new TableColumn<>("Thời gian báo cáo");
-        reportTimeColumn.setCellValueFactory(new PropertyValueFactory<>("reportTime"));
+        reportTimeColumn.setCellValueFactory(new PropertyValueFactory<>("created_at"));
 
         TableColumn<SpamReport, String> reportedUsernameColumn = new TableColumn<>("Tên đăng nhập bị báo cáo");
-        reportedUsernameColumn.setCellValueFactory(new PropertyValueFactory<>("reportedUsername"));
+        reportedUsernameColumn.setCellValueFactory(cellData -> {
+            SpamReport report = cellData.getValue();
+            return new SimpleStringProperty(getUsernameById(report.getReported_id()));
+        });
 
         TableColumn<SpamReport, String> reporterUsernameColumn = new TableColumn<>("Tên đăng nhập báo cáo");
-        reporterUsernameColumn.setCellValueFactory(new PropertyValueFactory<>("reporterUsername"));
+        reporterUsernameColumn.setCellValueFactory(cellData -> {
+            SpamReport report = cellData.getValue();
+            return new SimpleStringProperty(getUsernameById(report.getReporter_id()));
+        });
 
         spamReportTable.getColumns().addAll(reportTimeColumn, reportedUsernameColumn, reporterUsernameColumn);
 
-        spamReportData = FXCollections.observableArrayList(
-                new SpamReport("2024-01-10 10:30", "spam_user1", "reporter1"),
-                new SpamReport("2024-01-12 14:45", "spam_user2", "reporter2")
-        );
-        spamReportTable.setItems(spamReportData);
+        // Tạo kết nối đến MongoDB
+        MongoDBConnection mongoDBConnection = new MongoDBConnection();
+
+        // Lấy dữ liệu báo cáo spam từ MongoDB
+        List<SpamReport> spamReportsFromDB = mongoDBConnection.fetchAllSpamReports("");  // Lấy tất cả báo cáo spam
+
+        // Chuyển danh sách báo cáo spam thành ObservableList và gán vào TableView
+        spamReportTable.setItems(FXCollections.observableArrayList(spamReportsFromDB));
 
         // Hành động cho báo cáo spam
         HBox spamReportActionsBox = new HBox(15);
@@ -436,7 +512,7 @@ public class AdminPanelInterface extends Application {
         lockUserButton.setOnAction(e -> {
             SpamReport selectedReport = spamReportTable.getSelectionModel().getSelectedItem();
             if (selectedReport != null) {
-                lockUserAccount(selectedReport.getReportedUsername());
+                lockUserAccount(selectedReport.getReported_id());
             }
         });
 
@@ -445,6 +521,18 @@ public class AdminPanelInterface extends Application {
         spamReportsBox.getChildren().addAll(spamReportsLabel, spamReportsFilterBox, spamReportTable, spamReportActionsBox);
         return spamReportsBox;
     }
+
+    // Helper method to get username by ObjectId
+    private String getUsernameById(ObjectId userId) {
+        MongoDBConnection mongoDBConnection = new MongoDBConnection();  // Tạo đối tượng MongoDBConnection
+        List<User> users = mongoDBConnection.fetchUsersByIds(Collections.singletonList(userId));
+        if (users != null && !users.isEmpty()) {
+            return users.get(0).getUsername();
+        }
+        return "Unknown";  // Trả về "Unknown" nếu không tìm thấy người dùng
+    }
+
+
 
     /**
      * Tạo nội dung cho tab Người dùng Mới Đăng ký.
@@ -478,12 +566,6 @@ public class AdminPanelInterface extends Application {
         sortNewUserComboBox.setItems(FXCollections.observableArrayList("Tên", "Thời gian tạo"));
 
         Button applyNewUserFilterButton = new Button("Áp dụng");
-        applyNewUserFilterButton.setOnAction(e -> applyNewUserFilter(
-                startDatePicker.getValue(),
-                endDatePicker.getValue(),
-                sortNewUserComboBox.getValue(),
-                filterNewUserNameField.getText()
-        ));
 
         newUsersFilterBox.getChildren().addAll(startDatePicker, endDatePicker, sortNewUserComboBox, filterNewUserNameField, applyNewUserFilterButton);
 
@@ -493,21 +575,22 @@ public class AdminPanelInterface extends Application {
         newUserTable.setPrefHeight(300);
         newUserTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
 
-        TableColumn<NewUser, String> newUserUsernameColumn = new TableColumn<>("Tên đăng nhập");
+        TableColumn<User, String> newUserUsernameColumn = new TableColumn<>("Tên đăng nhập");
         newUserUsernameColumn.setCellValueFactory(new PropertyValueFactory<>("username"));
 
-        TableColumn<NewUser, String> newUserFullNameColumn = new TableColumn<>("Tên đầy đủ");
+        TableColumn<User, String> newUserFullNameColumn = new TableColumn<>("Tên đầy đủ");
         newUserFullNameColumn.setCellValueFactory(new PropertyValueFactory<>("fullName"));
 
-        TableColumn<NewUser, String> newUserRegistrationDateColumn = new TableColumn<>("Ngày đăng ký");
-        newUserRegistrationDateColumn.setCellValueFactory(new PropertyValueFactory<>("registrationDate"));
+        TableColumn<User, Date> newUserRegistrationDateColumn = new TableColumn<>("Ngày đăng ký");
+        newUserRegistrationDateColumn.setCellValueFactory(new PropertyValueFactory<>("createdAt"));
 
         newUserTable.getColumns().addAll(newUserUsernameColumn, newUserFullNameColumn, newUserRegistrationDateColumn);
 
-        newUserData = FXCollections.observableArrayList(
-                new NewUser("new_user1", "New User One", "2024-04-01"),
-                new NewUser("new_user2", "New User Two", "2024-04-05")
-        );
+        // Lấy danh sách người dùng mới từ MongoDB
+        MongoDBConnection mongoDBConnection = new MongoDBConnection();
+        List<User> newUsersFromDB = mongoDBConnection.fetchNewUsers();  // Lấy dữ liệu ban đầu
+
+        newUserData = FXCollections.observableArrayList(newUsersFromDB);
         newUserTable.setItems(newUserData);
 
         // Hành động cho người dùng mới
@@ -515,15 +598,11 @@ public class AdminPanelInterface extends Application {
         newUserActionsBox.setAlignment(Pos.CENTER);
         newUserActionsBox.setPadding(new Insets(10));
 
-        Button refreshNewUsersButton = new Button("Làm mới");
-        refreshNewUsersButton.getStyleClass().add("admin-button");
-        refreshNewUsersButton.setOnAction(e -> refreshNewUsers());
-
-        newUserActionsBox.getChildren().addAll(refreshNewUsersButton);
-
         newUsersBox.getChildren().addAll(newUsersLabel, newUsersFilterBox, newUserTable, newUserActionsBox);
         return newUsersBox;
     }
+
+
 
     /**
      * Tạo nội dung cho tab Danh sách Người dùng và Bạn bè.
@@ -630,31 +709,42 @@ public class AdminPanelInterface extends Application {
      * @param status   Trạng thái để lọc.
      */
     private void applyUserFilter(String username, String fullName, String status) {
-        ObservableList<User> filteredData = FXCollections.observableArrayList();
+        // Lấy dữ liệu ban đầu (từ cơ sở dữ liệu hoặc nguồn dữ liệu)
+        MongoDBConnection mongoDBConnection = new MongoDBConnection();
+        List<User> allUsers = mongoDBConnection.fetchUsers(); // Lấy tất cả người dùng từ MongoDB
+        mongoDBConnection.close();
 
-        for (User user : userData) {
+        // Lọc người dùng theo các tiêu chí
+        List<User> filteredUsers = new ArrayList<>();
+        for (User user : allUsers) {
             boolean matches = true;
+
+            // Kiểm tra nếu tên đăng nhập trùng
             if (username != null && !username.isEmpty() && !user.getUsername().toLowerCase().contains(username.toLowerCase())) {
                 matches = false;
             }
+
+            // Kiểm tra nếu tên đầy đủ trùng
             if (fullName != null && !fullName.isEmpty() && !user.getFullName().toLowerCase().contains(fullName.toLowerCase())) {
                 matches = false;
             }
-            if (status != null && !status.isEmpty()) {
-                // Giả sử bạn có một thuộc tính status trong lớp User
-                // Bạn cần thêm thuộc tính này và điều chỉnh logic lọc tương ứng
-                // Ví dụ:
-                // if (!user.getStatus().equalsIgnoreCase(status)) {
-                //     matches = false;
-                // }
-                // Trong ví dụ này, chúng ta sẽ bỏ qua phần lọc này
+
+            // Kiểm tra nếu trạng thái trùng
+            if (status != null && !status.isEmpty() && !user.getStatus().equalsIgnoreCase(status)) {
+                matches = false;
             }
+
+            // Nếu trùng khớp với tất cả các tiêu chí lọc, thêm vào danh sách
             if (matches) {
-                filteredData.add(user);
+                filteredUsers.add(user);
             }
         }
+
+        // Cập nhật bảng với dữ liệu đã lọc
+        ObservableList<User> filteredData = FXCollections.observableArrayList(filteredUsers);
         userTable.setItems(filteredData);
     }
+
 
     /**
      * Áp dụng bộ lọc cho bảng quản lý nhóm chat.
@@ -709,11 +799,15 @@ public class AdminPanelInterface extends Application {
 
         membersTable.getColumns().addAll(usernameColumn, fullNameColumn);
 
-        // Dữ liệu mẫu (thay thế bằng dữ liệu thực tế)
-        ObservableList<User> membersData = FXCollections.observableArrayList(
-                new User("member1", "Member One", "member1@example.com", "789 Pine St", "1993-07-10", "Male", 2, 5),
-                new User("member2", "Member Two", "member2@example.com", "321 Maple St", "1991-11-22", "Female", 1, 3)
-        );
+        // Lấy danh sách ID thành viên từ nhóm chat
+        List<ObjectId> memberIds = group.getMemberIds();
+
+        // Truy vấn danh sách người dùng từ MongoDB dựa trên memberIds
+        MongoDBConnection mongoDBConnection = new MongoDBConnection();
+        List<User> memberList = mongoDBConnection.fetchUsersByIds(memberIds);
+
+        // Chuyển thành ObservableList để hiển thị
+        ObservableList<User> membersData = FXCollections.observableArrayList(memberList);
         membersTable.setItems(membersData);
 
         VBox vbox = new VBox(10);
@@ -724,6 +818,7 @@ public class AdminPanelInterface extends Application {
         memberStage.setScene(memberScene);
         memberStage.show();
     }
+
 
     /**
      * Hiển thị danh sách admin của một nhóm chat.
@@ -747,11 +842,15 @@ public class AdminPanelInterface extends Application {
 
         adminsTable.getColumns().addAll(usernameColumn, fullNameColumn);
 
-        // Dữ liệu mẫu (thay thế bằng dữ liệu thực tế)
-        ObservableList<User> adminsData = FXCollections.observableArrayList(
-                new User("admin1", "Admin One", "admin1@example.com", "654 Cedar St", "1989-03-14", "Male", 4, 12),
-                new User("admin2", "Admin Two", "admin2@example.com", "987 Birch St", "1994-09-30", "Female", 3, 8)
-        );
+        // Lấy danh sách ID admin từ nhóm chat
+        List<ObjectId> adminIds = group.getAdminIds();
+
+        // Truy vấn danh sách người dùng từ MongoDB dựa trên adminIds
+        MongoDBConnection mongoDBConnection = new MongoDBConnection();
+        List<User> adminList = mongoDBConnection.fetchUsersByIds(adminIds);
+
+        // Chuyển thành ObservableList để hiển thị
+        ObservableList<User> adminsData = FXCollections.observableArrayList(adminList);
         adminsTable.setItems(adminsData);
 
         VBox vbox = new VBox(10);
@@ -762,6 +861,7 @@ public class AdminPanelInterface extends Application {
         adminStage.setScene(adminScene);
         adminStage.show();
     }
+
 
     /**
      * Áp dụng bộ lọc cho bảng báo cáo spam.
@@ -775,45 +875,59 @@ public class AdminPanelInterface extends Application {
 
         for (SpamReport report : spamReportData) {
             boolean matches = true;
+
+            // Kiểm tra ngày nếu có lọc theo thời gian
             if (filterTime != null) {
-                // Giả sử reportTime ở định dạng "yyyy-MM-dd HH:mm", ta chỉ kiểm tra ngày
-                String reportDate = report.getReportTime().split(" ")[0];
-                if (!reportDate.equals(filterTime.toString())) {
+                // Chuyển đổi từ Date sang LocalDate và so sánh
+                java.time.LocalDate reportDate = report.getCreated_at().toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+                if (!reportDate.equals(filterTime)) {
                     matches = false;
                 }
             }
-            if (filterUsername != null && !filterUsername.isEmpty() && !report.getReportedUsername().toLowerCase().contains(filterUsername.toLowerCase())) {
-                matches = false;
+
+            // Kiểm tra tên đăng nhập nếu có lọc theo tên đăng nhập
+            if (filterUsername != null && !filterUsername.isEmpty()) {
+                String reportedUsername = getUsernameById(report.getReported_id()); // Lấy tên từ cơ sở dữ liệu
+                if (!reportedUsername.toLowerCase().contains(filterUsername.toLowerCase())) {
+                    matches = false;
+                }
             }
+
+            // Nếu mọi điều kiện lọc đều phù hợp, thêm vào danh sách kết quả
             if (matches) {
                 filteredData.add(report);
             }
         }
 
-        // Sắp xếp dữ liệu
+        // Sắp xếp dữ liệu nếu có yêu cầu
         if (sortBy != null) {
             if (sortBy.equals("Thời gian")) {
-                FXCollections.sort(filteredData, (r1, r2) -> r1.getReportTime().compareTo(r2.getReportTime()));
+                FXCollections.sort(filteredData, (r1, r2) -> r1.getCreated_at().compareTo(r2.getCreated_at()));
             } else if (sortBy.equals("Tên đăng nhập")) {
-                FXCollections.sort(filteredData, (r1, r2) -> r1.getReportedUsername().compareToIgnoreCase(r2.getReportedUsername()));
+                FXCollections.sort(filteredData, (r1, r2) -> {
+                    String r1Username = getUsernameById(r1.getReported_id());
+                    String r2Username = getUsernameById(r2.getReported_id());
+                    return r1Username.compareToIgnoreCase(r2Username);
+                });
             }
         }
 
+        // Gán lại danh sách dữ liệu đã lọc cho bảng
         spamReportTable.setItems(filteredData);
     }
 
     /**
      * Khóa tài khoản người dùng dựa trên tên đăng nhập.
      *
-     * @param username Tên đăng nhập của người dùng cần khóa.
+     * @param userid Tên đăng nhập của người dùng cần khóa.
      */
-    private void lockUserAccount(String username) {
+    private void lockUserAccount(ObjectId userid) {
         // Logic để khóa tài khoản người dùng
         // Ví dụ: Cập nhật trạng thái trong cơ sở dữ liệu
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
         alert.setTitle("Khóa Tài khoản");
         alert.setHeaderText(null);
-        alert.setContentText("Tài khoản \"" + username + "\" đã được khóa.");
+        alert.setContentText("Tài khoản \"" + userid + "\" đã được khóa.");
         alert.showAndWait();
 
         // Cập nhật dữ liệu trong bảng nếu cần
@@ -828,25 +942,33 @@ public class AdminPanelInterface extends Application {
      * @param filterName    Lọc theo tên đăng nhập.
      */
     private void applyNewUserFilter(java.time.LocalDate startDate, java.time.LocalDate endDate, String sortBy, String filterName) {
-        ObservableList<NewUser> filteredData = FXCollections.observableArrayList();
+        ObservableList<User> filteredData = FXCollections.observableArrayList();
 
-        for (NewUser newUser : newUserData) {
+        for (User newUser : newUserData) {
             boolean matches = true;
+
+            // Kiểm tra ngày bắt đầu
             if (startDate != null) {
-                String registrationDate = newUser.getRegistrationDate();
-                if (registrationDate.compareTo(startDate.toString()) < 0) {
+                LocalDate registrationDate = LocalDate.parse(newUser.getCreatedAt().toString()); // Chuyển đổi ngày từ Date sang LocalDate
+                if (registrationDate.isBefore(startDate)) {
                     matches = false;
                 }
             }
+
+            // Kiểm tra ngày kết thúc
             if (endDate != null) {
-                String registrationDate = newUser.getRegistrationDate();
-                if (registrationDate.compareTo(endDate.toString()) > 0) {
+                LocalDate registrationDate = LocalDate.parse(newUser.getCreatedAt().toString()); // Chuyển đổi ngày từ Date sang LocalDate
+                if (registrationDate.isAfter(endDate)) {
                     matches = false;
                 }
             }
+
+            // Kiểm tra tên người dùng
             if (filterName != null && !filterName.isEmpty() && !newUser.getUsername().toLowerCase().contains(filterName.toLowerCase())) {
                 matches = false;
             }
+
+            // Nếu tất cả các điều kiện đều khớp, thêm vào filteredData
             if (matches) {
                 filteredData.add(newUser);
             }
@@ -857,22 +979,19 @@ public class AdminPanelInterface extends Application {
             if (sortBy.equals("Tên")) {
                 FXCollections.sort(filteredData, (u1, u2) -> u1.getUsername().compareToIgnoreCase(u2.getUsername()));
             } else if (sortBy.equals("Thời gian tạo")) {
-                FXCollections.sort(filteredData, (u1, u2) -> u1.getRegistrationDate().compareTo(u2.getRegistrationDate()));
+                FXCollections.sort(filteredData, (u1, u2) -> {
+                    LocalDate date1 = LocalDate.parse(u1.getCreatedAt().toString());
+                    LocalDate date2 = LocalDate.parse(u2.getCreatedAt().toString());
+                    return date1.compareTo(date2);
+                });
             }
         }
 
+        // Cập nhật bảng dữ liệu với kết quả đã lọc và sắp xếp
         newUserTable.setItems(filteredData);
     }
 
-    /**
-     * Làm mới dữ liệu trong bảng người dùng mới.
-     */
-    private void refreshNewUsers() {
-        // Logic để làm mới dữ liệu người dùng mới
-        // Ví dụ: Tải lại từ cơ sở dữ liệu
-        newUserData.add(new NewUser("new_user3", "New User Three", "2024-04-10"));
-        newUserTable.setItems(newUserData);
-    }
+
 
     /**
      * Áp dụng bộ lọc cho bảng danh sách người dùng và bạn bè.
@@ -935,6 +1054,7 @@ public class AdminPanelInterface extends Application {
      *
      * @param year Năm cần hiển thị biểu đồ.
      */
+
     private void showNewUsersChart(int year) {
         Stage chartStage = new Stage();
         chartStage.setTitle("Đăng ký Người dùng Mới - " + year);
@@ -951,9 +1071,14 @@ public class AdminPanelInterface extends Application {
         XYChart.Series<Number, Number> dataSeries = new XYChart.Series<>();
         dataSeries.setName("Đăng ký");
 
-        // Dữ liệu mẫu (thay thế bằng dữ liệu thực tế)
+        // Truy vấn MongoDB để lấy số lượng người dùng mới trong từng tháng của năm
+        MongoDBConnection mongoDBConnection = new MongoDBConnection();
+        List<Integer> monthlyUserCounts = mongoDBConnection.getUserCountsByMonth(year);
+
+        // Thêm dữ liệu vào biểu đồ (mỗi tháng 1 điểm dữ liệu)
         for (int month = 1; month <= 12; month++) {
-            dataSeries.getData().add(new XYChart.Data<>(month, Math.random() * 100));
+            int userCount = (monthlyUserCounts.size() >= month) ? monthlyUserCounts.get(month - 1) : 0;
+            dataSeries.getData().add(new XYChart.Data<>(month, userCount));
         }
 
         lineChart.getData().add(dataSeries);
@@ -962,6 +1087,7 @@ public class AdminPanelInterface extends Application {
         chartStage.setScene(chartScene);
         chartStage.show();
     }
+
 
     /**
      * Hiển thị biểu đồ số người dùng hoạt động trong năm.
@@ -999,10 +1125,275 @@ public class AdminPanelInterface extends Application {
     /**
      * Thêm người dùng mới.
      */
+
     private void addUser() {
-        // Logic để thêm người dùng mới
-        System.out.println("Thêm người dùng mới");
+        // Tạo cửa sổ phụ (popup) mới
+        Stage addUserStage = new Stage();
+        addUserStage.setTitle("Thêm người dùng mới");
+
+        // Các trường nhập liệu
+        TextField filterUsernameField = new TextField();
+        TextField filterFullNameField = new TextField();
+        TextField filterEmailField = new TextField();
+        TextField filterAddressField = new TextField();
+        TextField filterBirthDateField = new TextField();
+        ComboBox<String> filterGenderComboBox = new ComboBox<>();
+        ComboBox<String> filterStatusComboBox = new ComboBox<>();
+
+        // Cấu hình các ComboBox
+        filterGenderComboBox.getItems().addAll("Male", "Female", "Other");
+        filterStatusComboBox.getItems().addAll("Active", "Inactive");
+
+        // Tạo nút "Thêm người dùng"
+        Button addButton = new Button("Thêm người dùng");
+        addButton.setOnAction(e -> {
+            // Gọi phương thức thêm người dùng khi nhấn nút
+            addUserToDatabase(
+                    filterUsernameField.getText(),
+                    filterFullNameField.getText(),
+                    filterEmailField.getText(),
+                    filterAddressField.getText(),
+                    filterBirthDateField.getText(),
+                    filterGenderComboBox.getValue(),
+                    filterStatusComboBox.getValue()
+            );
+            addUserStage.close();  // Đóng cửa sổ sau khi thêm thành công
+        });
+
+        // Tạo layout cho form nhập liệu
+        VBox vbox = new VBox(10);
+        vbox.getChildren().addAll(
+                new Label("Username"), filterUsernameField,
+                new Label("Full Name"), filterFullNameField,
+                new Label("Email"), filterEmailField,
+                new Label("Address"), filterAddressField,
+                new Label("Birth Date (yyyy-MM-dd)"), filterBirthDateField,
+                new Label("Gender"), filterGenderComboBox,
+                new Label("Status"), filterStatusComboBox,
+                addButton
+        );
+
+        // Thiết lập Scene cho cửa sổ phụ và hiển thị
+        Scene scene = new Scene(vbox, 300, 400);
+        addUserStage.setScene(scene);
+        addUserStage.show();
     }
+
+    // Phương thức để thêm người dùng vào cơ sở dữ liệu
+    private void addUserToDatabase(String username, String fullName, String email, String address, String birthDate, String gender, String status) {
+        // Kiểm tra các trường bắt buộc
+
+
+        if (username.isEmpty() || fullName.isEmpty() || email.isEmpty() || address.isEmpty() || birthDate.isEmpty() || gender == null) {
+            showAlert("Lỗi", "Vui lòng điền đầy đủ thông tin!", Alert.AlertType.ERROR);
+            return;
+        }
+
+        // Kiểm tra định dạng email
+        if (!isValidEmail(email)) {
+            showAlert("Lỗi", "Địa chỉ email không hợp lệ!", Alert.AlertType.ERROR);
+            return;
+        }
+
+        // Kiểm tra định dạng ngày tháng
+        if (!isValidDate(birthDate)) {
+            showAlert("Lỗi", "Ngày sinh không hợp lệ!", Alert.AlertType.ERROR);
+            return;
+        }
+
+
+
+
+        User newUser = new User(
+                new ObjectId(),
+                username,
+                "defaultPassword",
+                fullName,
+                address,
+                birthDate,
+                gender,
+                email,
+                status,
+                new ArrayList<>(),
+                new ArrayList<>(),
+                new Date(),
+                new Date()
+        );
+
+        // Kết nối với MongoDB và thêm người dùng
+        MongoDBConnection mongoDBConnection = new MongoDBConnection();
+        mongoDBConnection.addUser(newUser);
+        mongoDBConnection.close();
+
+        // Hiển thị thông báo thành công
+        showAlert("Thành công", "Thêm người dùng thành công!", Alert.AlertType.INFORMATION);
+    }
+
+    // Hàm kiểm tra định dạng email
+    private boolean isValidEmail(String email) {
+        String emailRegex = "^[a-zA-Z0-9_+&*-]+(?:\\.[a-zA-Z0-9_+&*-]+)*@(?:[a-zA-Z0-9-]+\\.)+[a-zA-Z]{2,7}$";
+        return email.matches(emailRegex);
+    }
+
+    // Hàm kiểm tra định dạng ngày tháng (yyyy-MM-dd)
+    private boolean isValidDate(String date) {
+        try {
+            java.time.LocalDate.parse(date); // Sử dụng LocalDate để kiểm tra định dạng
+            return true;
+        } catch (java.time.format.DateTimeParseException e) {
+            return false;
+        }
+    }
+
+    // Hàm hiển thị thông báo (Alert)
+    private void showAlert(String title, String message, Alert.AlertType type) {
+        Alert alert = new Alert(type);
+        alert.setTitle(title);
+        alert.setHeaderText(null);
+        alert.setContentText(message);
+        alert.showAndWait();
+    }
+
+    private void updateUser(User selectedUser) {
+        // Tạo cửa sổ phụ (popup) mới để nhập thông tin người dùng cần cập nhật
+        Stage updateUserStage = new Stage();
+        updateUserStage.setTitle("Cập nhật người dùng");
+
+        // Các trường nhập liệu
+        TextField filterUsernameField = new TextField(selectedUser.getUsername());
+        TextField filterFullNameField = new TextField(selectedUser.getFullName());
+        TextField filterEmailField = new TextField(selectedUser.getEmail());
+        TextField filterAddressField = new TextField(selectedUser.getAddress());
+        TextField filterBirthDateField = new TextField(selectedUser.getBirthDate());
+        ComboBox<String> filterGenderComboBox = new ComboBox<>();
+        ComboBox<String> filterStatusComboBox = new ComboBox<>();
+
+        // Cấu hình các ComboBox
+        filterGenderComboBox.getItems().addAll("Male", "Female", "Other");
+        filterStatusComboBox.getItems().addAll("Active", "Inactive");
+
+        // Chọn giá trị mặc định cho ComboBox
+        filterGenderComboBox.setValue(selectedUser.getGender());
+        filterStatusComboBox.setValue(selectedUser.getStatus());
+
+        // Tạo nút "Cập nhật người dùng"
+        Button updateButton = new Button("Cập nhật người dùng");
+        updateButton.setOnAction(e -> {
+            // Gọi phương thức cập nhật người dùng khi nhấn nút
+            updateUserInDatabase(
+                    filterUsernameField.getText(),
+                    filterFullNameField.getText(),
+                    filterEmailField.getText(),
+                    filterAddressField.getText(),
+                    filterBirthDateField.getText(),
+                    filterGenderComboBox.getValue(),
+                    filterStatusComboBox.getValue()
+            );
+            updateUserStage.close();  // Đóng cửa sổ sau khi cập nhật thành công
+        });
+
+        // Tạo layout cho form nhập liệu
+        VBox vbox = new VBox(10);
+        vbox.getChildren().addAll(
+                new Label("Username"), filterUsernameField,
+                new Label("Full Name"), filterFullNameField,
+                new Label("Email"), filterEmailField,
+                new Label("Address"), filterAddressField,
+                new Label("Birth Date (yyyy-MM-dd)"), filterBirthDateField,
+                new Label("Gender"), filterGenderComboBox,
+                new Label("Status"), filterStatusComboBox,
+                updateButton
+        );
+
+        // Thiết lập Scene cho cửa sổ phụ và hiển thị
+        Scene scene = new Scene(vbox, 300, 400);
+        updateUserStage.setScene(scene);
+        updateUserStage.show();
+    }
+
+    // Phương thức để cập nhật người dùng trong cơ sở dữ liệu
+    private void updateUserInDatabase(String username, String fullName, String email, String address, String birthDate, String gender, String status) {
+        // Kiểm tra các trường bắt buộc
+
+        if (username.isEmpty() || fullName.isEmpty() || email.isEmpty() || address.isEmpty() || birthDate.isEmpty() || gender == null) {
+            showAlert("Lỗi", "Vui lòng điền đầy đủ thông tin!", Alert.AlertType.ERROR);
+            return;
+        }
+
+        // Kiểm tra định dạng email
+        if (!isValidEmail(email)) {
+            showAlert("Lỗi", "Địa chỉ email không hợp lệ!", Alert.AlertType.ERROR);
+            return;
+        }
+
+        // Kiểm tra định dạng ngày tháng
+        if (!isValidDate(birthDate)) {
+            showAlert("Lỗi", "Ngày sinh không hợp lệ!", Alert.AlertType.ERROR);
+            return;
+        }
+
+
+
+        // Tạo đối tượng User với thông tin đã chỉnh sửa
+        User updatedUser = new User(
+                new ObjectId(),  // Cập nhật với ObjectId của người dùng cũ
+                username,
+                "defaultPassword", // Bạn có thể giữ mật khẩu cũ hoặc cho phép thay đổi mật khẩu
+                fullName,
+                address,
+                birthDate,
+                gender,
+                email,
+                status,
+                new ArrayList<>(),
+                new ArrayList<>(),
+                new Date(),  // Ngày tạo không thay đổi
+                new Date()   // Cập nhật ngày sửa đổi
+        );
+
+        // Kết nối với MongoDB và cập nhật thông tin người dùng
+        MongoDBConnection mongoDBConnection = new MongoDBConnection();
+        mongoDBConnection.updateUser(updatedUser);  // Hàm cập nhật người dùng vào MongoDB
+        mongoDBConnection.close();
+
+        // Hiển thị thông báo thành công
+        showAlert("Thành công", "Cập nhật người dùng thành công!", Alert.AlertType.INFORMATION);
+    }
+
+    private void showDeleteUserConfirmationDialog(User selectedUser) {
+        // Tạo cửa sổ xác nhận xóa người dùng
+        Alert confirmationAlert = new Alert(Alert.AlertType.CONFIRMATION);
+        confirmationAlert.setTitle("Xác nhận xóa");
+        confirmationAlert.setHeaderText("Bạn có chắc chắn muốn xóa người dùng này?");
+        confirmationAlert.setContentText("Tên người dùng: " + selectedUser.getUsername());
+
+        // Thêm các nút cho xác nhận
+        ButtonType buttonTypeYes = new ButtonType("Có");
+        ButtonType buttonTypeNo = new ButtonType("Không", ButtonBar.ButtonData.CANCEL_CLOSE);
+        confirmationAlert.getButtonTypes().setAll(buttonTypeYes, buttonTypeNo);
+
+        // Xử lý kết quả khi người dùng nhấn nút
+        confirmationAlert.showAndWait().ifPresent(response -> {
+            if (response == buttonTypeYes) {
+                // Nếu người dùng xác nhận, gọi phương thức xóa
+                deleteUserFromDatabase(selectedUser);
+            }
+        });
+    }
+
+    private void deleteUserFromDatabase(User selectedUser) {
+        // Kết nối với MongoDB và xóa người dùng
+        MongoDBConnection mongoDBConnection = new MongoDBConnection();
+        mongoDBConnection.deleteUser(selectedUser.getId());  // Giả sử bạn có phương thức xóa theo ID người dùng
+        mongoDBConnection.close();
+
+        // Hiển thị thông báo thành công
+        showAlert("Thành công", "Người dùng đã bị xóa thành công!", Alert.AlertType.INFORMATION);
+    }
+
+
+
+
 
     /**
      * Hiển thị hộp thoại cập nhật mật khẩu cho người dùng.
@@ -1045,10 +1436,55 @@ public class AdminPanelInterface extends Application {
         });
 
         Optional<String> result = dialog.showAndWait();
-        result.ifPresent(password -> {
+        result.ifPresent(newPasswordText -> {
             // Logic để cập nhật mật khẩu trong cơ sở dữ liệu hoặc backend
-            System.out.println("Mật khẩu đã được cập nhật cho người dùng: " + user.getUsername());
+            updatePasswordInDatabase(user, newPasswordText);
         });
+    }
+
+    private void updatePasswordInDatabase(User user, String newPassword) {
+        // Kiểm tra xem mật khẩu mới có hợp lệ không
+        if (newPassword == null || newPassword.trim().isEmpty()) {
+            showAlert("Lỗi", "Mật khẩu không được để trống!", Alert.AlertType.ERROR);
+            return;
+        }
+
+        // Cập nhật mật khẩu trong cơ sở dữ liệu
+        user.setPassword(newPassword); // Giả sử đối tượng User có phương thức setPassword()
+
+        // Kết nối với MongoDB và cập nhật mật khẩu
+        MongoDBConnection mongoDBConnection = new MongoDBConnection();
+        mongoDBConnection.updateUser(user);  // Cập nhật thông tin người dùng trong cơ sở dữ liệu MongoDB
+        mongoDBConnection.close();
+
+        // Hiển thị thông báo thành công
+        showAlert("Thành công", "Mật khẩu của người dùng đã được cập nhật!", Alert.AlertType.INFORMATION);
+    }
+
+
+
+
+    private void lockUnlockUser(User selectedUser) {
+        // Kiểm tra xem người dùng đã chọn hay chưa
+        if (selectedUser == null) {
+            showAlert("Lỗi", "Vui lòng chọn người dùng để thực hiện thao tác!", Alert.AlertType.ERROR);
+            return;
+        }
+
+        // Kiểm tra trạng thái hiện tại của người dùng
+        String currentStatus = selectedUser.getStatus();
+        String newStatus = currentStatus.equals("Active") ? "Inactive" : "Active"; // Đổi trạng thái
+
+        // Cập nhật đối tượng User với trạng thái mới
+        selectedUser.setStatus(newStatus);
+
+        // Cập nhật trong cơ sở dữ liệu MongoDB
+        MongoDBConnection mongoDBConnection = new MongoDBConnection();
+        mongoDBConnection.updateUser(selectedUser);  // Hàm cập nhật người dùng vào MongoDB
+        mongoDBConnection.close();
+
+        // Hiển thị thông báo thành công
+        showAlert("Thành công", "Người dùng đã được " + (newStatus.equals("Active") ? "mở khóa" : "khóa") + " thành công!", Alert.AlertType.INFORMATION);
     }
 
     /**
@@ -1065,125 +1501,44 @@ public class AdminPanelInterface extends Application {
         friendsTable.setPrefHeight(300);
         friendsTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
 
+        // Cột Tên đăng nhập
         TableColumn<User, String> usernameColumn = new TableColumn<>("Tên đăng nhập");
         usernameColumn.setCellValueFactory(new PropertyValueFactory<>("username"));
 
+        // Cột Tên đầy đủ
         TableColumn<User, String> fullNameColumn = new TableColumn<>("Tên đầy đủ");
         fullNameColumn.setCellValueFactory(new PropertyValueFactory<>("fullName"));
 
+        // Thêm cột vào bảng
         friendsTable.getColumns().addAll(usernameColumn, fullNameColumn);
 
-        // Dữ liệu mẫu (thay thế bằng dữ liệu bạn bè thực tế)
-        ObservableList<User> friendsData = FXCollections.observableArrayList(
-                new User("friend1", "Friend One", "friend1@example.com", "123 Street", "1995-02-11", "Male", 0, 0),
-                new User("friend2", "Friend Two", "friend2@example.com", "456 Avenue", "1994-04-21", "Female", 0, 0)
-        );
+        // Kết nối với MongoDB và lấy danh sách bạn bè từ ObjectId
+        MongoDBConnection mongoDBConnection = new MongoDBConnection();
+        List<User> friendsList = mongoDBConnection.getFriends(user.getId());  // Truyền ObjectId người dùng vào phương thức
+
+        // Chuyển danh sách bạn bè thành ObservableList để hiển thị trên TableView
+        ObservableList<User> friendsData = FXCollections.observableArrayList(friendsList);
+
+        // Cập nhật danh sách bạn bè vào TableView
         friendsTable.setItems(friendsData);
 
+        // Thiết lập layout cho cửa sổ
         VBox vbox = new VBox(10);
         vbox.setPadding(new Insets(20));
         vbox.getChildren().add(friendsTable);
 
+        // Tạo và hiển thị Scene
         Scene friendScene = new Scene(vbox, 500, 400);
         friendStage.setScene(friendScene);
         friendStage.show();
     }
 
-    /**
-     * Khóa hoặc mở khóa tài khoản người dùng.
-     *
-     * @param user Người dùng cần khóa hoặc mở khóa.
-     */
-    private void lockUnlockUser(User user) {
-        String currentStatus = "Active"; // Ví dụ, thay thế bằng việc lấy trạng thái thực tế
-        if (currentStatus.equals("Locked")) {
-            // Logic để mở khóa người dùng
-            Alert alert = new Alert(Alert.AlertType.INFORMATION);
-            alert.setTitle("Mở khóa Tài khoản");
-            alert.setHeaderText(null);
-            alert.setContentText("Người dùng " + user.getUsername() + " đã được mở khóa.");
-            alert.showAndWait();
-        } else {
-            // Logic để khóa người dùng
-            Alert alert = new Alert(Alert.AlertType.INFORMATION);
-            alert.setTitle("Khóa Tài khoản");
-            alert.setHeaderText(null);
-            alert.setContentText("Người dùng " + user.getUsername() + " đã bị khóa.");
-            alert.showAndWait();
-        }
-        // Cập nhật dữ liệu hoặc làm mới bảng nếu cần
-    }
+
 
     public static void main(String[] args) {
         launch(args);
     }
 
-    // Các lớp nội bộ
-
-    /**
-     * Lớp đại diện cho người dùng.
-     */
-    public class User {
-        private String username;
-        private String fullName;
-        private String email;
-        private String address;
-        private String birthDate;
-        private String gender;
-        private int directFriends;
-        private int totalFriends;
-
-        public User(String username, String fullName, String email, String address, String birthDate, String gender, int directFriends, int totalFriends) {
-            this.username = username;
-            this.fullName = fullName;
-            this.email = email;
-            this.address = address;
-            this.birthDate = birthDate;
-            this.gender = gender;
-            this.directFriends = directFriends;
-            this.totalFriends = totalFriends;
-        }
-
-        public String getUsername() {
-            return username;
-        }
-
-        public String getFullName() {
-            return fullName;
-        }
-
-        public String getEmail() {
-            return email;
-        }
-
-        public String getAddress() {
-            return address;
-        }
-
-        public String getBirthDate() {
-            return birthDate;
-        }
-
-        public String getGender() {
-            return gender;
-        }
-
-        public int getDirectFriends() {
-            return directFriends;
-        }
-
-        public int getTotalFriends() {
-            return totalFriends;
-        }
-
-        public void setDirectFriends(int directFriends) {
-            this.directFriends = directFriends;
-        }
-
-        public void setTotalFriends(int totalFriends) {
-            this.totalFriends = totalFriends;
-        }
-    }
 
     /**
      * Lớp đại diện cho hoạt động người dùng.
@@ -1218,57 +1573,13 @@ public class AdminPanelInterface extends Application {
         }
     }
 
-    /**
-     * Lớp đại diện cho nhóm chat.
-     */
-    public class ChatGroup {
-        private String groupName;
-        private String creationTime;
 
-        public ChatGroup(String groupName, String creationTime) {
-            this.groupName = groupName;
-            this.creationTime = creationTime;
-        }
-
-        public String getGroupName() {
-            return groupName;
-        }
-
-        public String getCreationTime() {
-            return creationTime;
-        }
-    }
-
-    /**
-     * Lớp đại diện cho báo cáo spam.
-     */
-    public class SpamReport {
-        private String reportTime;
-        private String reportedUsername;
-        private String reporterUsername;
-
-        public SpamReport(String reportTime, String reportedUsername, String reporterUsername) {
-            this.reportTime = reportTime;
-            this.reportedUsername = reportedUsername;
-            this.reporterUsername = reporterUsername;
-        }
-
-        public String getReportTime() {
-            return reportTime;
-        }
-
-        public String getReportedUsername() {
-            return reportedUsername;
-        }
-
-        public String getReporterUsername() {
-            return reporterUsername;
-        }
-    }
 
     /**
      * Lớp đại diện cho người dùng mới đăng ký.
      */
+
+    /*
     public class NewUser {
         private String username;
         private String fullName;
@@ -1291,7 +1602,7 @@ public class AdminPanelInterface extends Application {
         public String getRegistrationDate() {
             return registrationDate;
         }
-    }
+    }*/
 
     /**
      * Lớp đại diện cho người dùng với số lượng bạn bè.

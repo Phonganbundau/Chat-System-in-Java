@@ -28,9 +28,9 @@ public class ChatAppInterface extends Application {
     public void start(Stage primaryStage) {
         BorderPane root = new BorderPane();
 
-        // -----------------------------
+        // ----------------------------
         //         Side Menu
-        // -----------------------------
+        // ----------------------------
         VBox sideMenu = new VBox(20);
         sideMenu.setPadding(new Insets(20));
         sideMenu.setAlignment(Pos.TOP_CENTER);
