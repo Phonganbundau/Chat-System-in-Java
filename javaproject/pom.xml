@@ -36,24 +36,24 @@
             <version>11.1.0</version>
         </dependency>
 
-            <!-- Ikonli Core và JavaFX -->
-            <dependency>
-                <groupId>org.kordamp.ikonli</groupId>
-                <artifactId>ikonli-core</artifactId>
-                <version>12.2.0</version>
-            </dependency>
-            <dependency>
-                <groupId>org.kordamp.ikonli</groupId>
-                <artifactId>ikonli-javafx</artifactId>
-                <version>12.2.0</version>
-            </dependency>
+        <!-- Ikonli Core và JavaFX -->
+        <dependency>
+            <groupId>org.kordamp.ikonli</groupId>
+            <artifactId>ikonli-core</artifactId>
+            <version>12.3.1</version>
+        </dependency>
+        <dependency>
+            <groupId>org.kordamp.ikonli</groupId>
+            <artifactId>ikonli-javafx</artifactId>
+            <version>12.3.1</version>
+        </dependency>
 
-            <!-- Bộ FontAwesome cho Ikonli -->
-            <dependency>
-                <groupId>org.kordamp.ikonli</groupId>
-                <artifactId>ikonli-fontawesome5-pack</artifactId>
-                <version>12.2.0</version>
-            </dependency>
+        <!-- Bộ FontAwesome cho Ikonli -->
+        <dependency>
+            <groupId>org.kordamp.ikonli</groupId>
+            <artifactId>ikonli-fontawesome5-pack</artifactId>
+            <version>12.3.1</version>
+        </dependency>
 
         <dependency>
             <groupId>com.dlsc.formsfx</groupId>

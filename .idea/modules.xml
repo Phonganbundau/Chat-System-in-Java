@@ -2,11 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-<<<<<<< Updated upstream
-      <module fileurl="file://$PROJECT_DIR$/javaproject/javaproject.iml" filepath="$PROJECT_DIR$/javaproject/javaproject.iml" />
-=======
-      <module fileurl="file://$PROJECT_DIR$/.idea/JavaProject.iml" filepath="$PROJECT_DIR$/.idea/JavaProject.iml" />
->>>>>>> Stashed changes
+      <module fileurl="file://$PROJECT_DIR$/JavaProject.iml" filepath="$PROJECT_DIR$/JavaProject.iml" />
     </modules>
   </component>
 </project>

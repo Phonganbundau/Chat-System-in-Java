@@ -60,7 +60,7 @@ public class UserService_HomePage {
     }
 
     // Find user by email
-    private Optional<User_HomePage> findUserByEmail(String email) {
-        return users.stream().filter(user -> user
-    }
+    //private Optional<User_HomePage> findUserByEmail(String email) {
+        //return users.stream().filter(user -> user
+    //}
 }
