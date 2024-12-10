@@ -259,6 +259,25 @@ public class MongoDBConnection {
         return loginHistory;
     }
 
+    public List<Document> getAllLoginHistory() {
+        List<Document> loginHistory = new ArrayList<>();
+        try {
+            MongoCollection<Document> loginHistoryCollection = database.getCollection("login_history");
+
+            // Truy vấn toàn bộ lịch sử đăng nhập, sắp xếp theo login_time (mới nhất trước)
+            FindIterable<Document> iterable = loginHistoryCollection.find()
+                    .sort(new Document("login_time", -1));  // Sắp xếp theo thời gian giảm dần
+
+            // Thêm các kết quả vào danh sách
+            for (Document doc : iterable) {
+                loginHistory.add(doc);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            System.out.println("Lỗi khi truy vấn lịch sử đăng nhập: " + e.getMessage());
+        }
+        return loginHistory;
+    }
 
 
 
@@ -451,6 +470,49 @@ public class MongoDBConnection {
         return users;
     }
 
+    public User getUserById(ObjectId userId) {
+        MongoCollection<Document> collection = database.getCollection("users");
+
+        // Tạo bộ lọc tìm kiếm theo _id (ObjectId)
+        Document filter = new Document("_id", userId);  // Sử dụng trực tiếp userId
+
+        // Thực hiện truy vấn
+        Document doc = collection.find(filter).first();
+
+        if (doc != null) {
+            // Lấy các giá trị từ Document, sử dụng giá trị mặc định nếu trường null
+            Integer directFriends = doc.getInteger("directFriends", 0);  // Giá trị mặc định là 0
+            Integer totalFriends = doc.getInteger("totalFriends", 0);    // Giá trị mặc định là 0
+            List<ObjectId> friends = doc.getList("friends", ObjectId.class);  // Lấy danh sách bạn bè
+            List<ObjectId> blockedUsers = doc.getList("blocked_users", ObjectId.class);  // Lấy danh sách người bị chặn
+            String status = doc.getString("status");
+
+            // Lấy _id dưới dạng ObjectId
+            ObjectId _id = doc.getObjectId("_id");
+
+            // Tạo đối tượng User từ Document
+            return new User(
+                    _id,  // Lưu _id dưới dạng ObjectId
+                    doc.getString("username"),
+                    doc.getString("password"),
+                    doc.getString("full_name"),
+                    doc.getString("address"),
+                    doc.getString("birth_date"),
+                    doc.getString("gender"),
+                    doc.getString("email"),
+                    status,
+                    friends,
+                    blockedUsers,
+                    doc.getDate("created_at"),
+                    doc.getDate("updated_at")
+            );
+        }
+
+        // Nếu không tìm thấy người dùng, trả về null
+        return null;
+    }
+
+
     public List<User> fetchNewUsers() {
         List<User> newUsers = new ArrayList<>();
         // Kết nối tới MongoDB và truy vấn tất cả người dùng (không lọc theo status)
@@ -464,68 +526,22 @@ public class MongoDBConnection {
                     doc.getObjectId("_id"),
                     doc.getString("username"),
                     doc.getString("password"),
-                    doc.getString("fullName"),
+                    doc.getString("full_name"),
                     doc.getString("address"),
-                    doc.getString("birthDate"),
+                    doc.getString("birth_date"),
                     doc.getString("gender"),
                     doc.getString("email"),
                     doc.getString("status"),
                     (List<ObjectId>) doc.get("friends"),
-                    (List<ObjectId>) doc.get("blockedUsers"),
-                    doc.getDate("createdAt"),
-                    doc.getDate("updatedAt")
+                    (List<ObjectId>) doc.get("blocked_users"),
+                    doc.getDate("created_at"),
+                    doc.getDate("updated_at")
             );
             newUsers.add(user);
         }
         return newUsers;
     }
 
-    public List<User> filterAndSortNewUsers(LocalDate startDate, LocalDate endDate, String sortBy, String usernameFilter) {
-        List<User> filteredUsers = new ArrayList<>();
-        MongoCollection<Document> collection = database.getCollection("users");
-
-        // Lọc theo ngày đăng ký (createdAt)
-        Bson dateFilter = Filters.and(
-                Filters.gte("createdAt", java.sql.Date.valueOf(startDate)),
-                Filters.lte("createdAt", java.sql.Date.valueOf(endDate))
-        );
-
-        // Lọc theo tên đăng nhập (username)
-        Bson usernameFilterBson = Filters.regex("username", ".*" + usernameFilter + ".*", "i");  // "i" là để tìm kiếm không phân biệt chữ hoa chữ thường
-
-        // Kết hợp bộ lọc ngày và tên đăng nhập
-        FindIterable<Document> users = collection.find(Filters.and(dateFilter, usernameFilterBson));
-
-        for (Document doc : users) {
-            User user = new User(
-                    doc.getObjectId("_id"),
-                    doc.getString("username"),
-                    doc.getString("password"),
-                    doc.getString("fullName"),
-                    doc.getString("address"),
-                    doc.getString("birthDate"),
-                    doc.getString("gender"),
-                    doc.getString("email"),
-                    doc.getString("status"),
-                    (List<ObjectId>) doc.get("friends"),
-                    (List<ObjectId>) doc.get("blockedUsers"),
-                    doc.getDate("createdAt"),
-                    doc.getDate("updatedAt")
-            );
-            filteredUsers.add(user);
-        }
-
-        // Sắp xếp theo tên hoặc thời gian tạo
-        if (sortBy != null) {
-            if (sortBy.equals("Tên")) {
-                filteredUsers.sort((u1, u2) -> u1.getUsername().compareToIgnoreCase(u2.getUsername()));
-            } else if (sortBy.equals("Thời gian tạo")) {
-                filteredUsers.sort((u1, u2) -> u1.getCreatedAt().compareTo(u2.getCreatedAt()));
-            }
-        }
-
-        return filteredUsers;
-    }
 
 
 
@@ -621,6 +637,117 @@ public class MongoDBConnection {
         }
     }
 
+    public List<ActivityLog> fetchActivityLogs() {
+        List<ActivityLog> activityLogs = new ArrayList<>();
+
+        try {
+            MongoCollection<Document> activityLogCollection = database.getCollection("activity_logs");
+
+            // Truy vấn tất cả các hoạt động, có thể sắp xếp theo thời gian nếu cần
+            FindIterable<Document> iterable = activityLogCollection.find().sort(new Document("created_at", -1));  // Sắp xếp theo thời gian giảm dần
+
+            // Duyệt qua các tài liệu và chuyển đổi thành đối tượng ActivityLog
+            for (Document doc : iterable) {
+                ObjectId _id = doc.getObjectId("_id");
+                ObjectId userId = doc.getObjectId("user_id");
+                String action = doc.getString("action");
+                ObjectId targetId = doc.getObjectId("target_id");
+                Date createdAt = doc.getDate("created_at");
+
+                // Tạo đối tượng ActivityLog từ Document
+                ActivityLog activityLog = new ActivityLog(
+                        _id,
+                        userId,
+                        action,
+                        targetId,
+                        createdAt
+                );
+
+                // Thêm đối tượng ActivityLog vào danh sách
+                activityLogs.add(activityLog);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            System.out.println("Lỗi khi truy vấn hoạt động người dùng: " + e.getMessage());
+        }
+
+        return activityLogs;
+    }
+
+    /**
+     * Lấy số lượng người dùng hoạt động duy nhất mỗi tháng trong một năm cụ thể.
+     *
+     * @param year Năm cần lấy dữ liệu
+     * @return Danh sách số lượng người dùng hoạt động từ tháng 1 đến tháng 12
+     */
+    public List<Integer> getActiveUserCountsByMonth(int year) {
+        List<Integer> monthlyCounts = new ArrayList<>(Collections.nCopies(12, 0));
+
+        try {
+            MongoCollection<Document> activityLogCollection = database.getCollection("activity_logs");
+
+            // Xây dựng pipeline Aggregation
+            List<Bson> pipeline = Arrays.asList(
+                    // Match các log trong năm được chọn và hành động "login" (nếu cần)
+                    new Document("$match", new Document("created_at",
+                            new Document("$gte", getStartOfYear(year))
+                                    .append("$lt", getStartOfNextYear(year)))
+                            .append("action", "login") // Loại bỏ dòng này nếu muốn bao gồm mọi hành động
+                    ),
+                    // Thêm trường "month"
+                    new Document("$addFields", new Document("month", new Document("$month", "$created_at"))),
+                    // Nhóm theo tháng và đếm số lượng người dùng duy nhất
+                    new Document("$group", new Document("_id", "$month")
+                            .append("uniqueUsers", new Document("$addToSet", "$user_id"))
+                    ),
+                    // Tính số lượng người dùng duy nhất mỗi nhóm
+                    new Document("$project", new Document("month", "$_id")
+                            .append("uniqueUserCount", new Document("$size", "$uniqueUsers"))
+                    ),
+                    // Sắp xếp theo tháng
+                    new Document("$sort", new Document("month", 1))
+            );
+
+            AggregateIterable<Document> result = activityLogCollection.aggregate(pipeline);
+
+            // Duyệt kết quả và cập nhật số lượng người dùng hoạt động
+            for (Document doc : result) {
+                int month = doc.getInteger("month");
+                int count = doc.getInteger("uniqueUserCount", 0);
+                if (month >=1 && month <=12) {
+                    monthlyCounts.set(month - 1, count);
+                }
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            System.out.println("Lỗi khi truy vấn số lượng người dùng hoạt động: " + e.getMessage());
+        }
+
+        return monthlyCounts;
+    }
+
+    /**
+     * Lấy thời điểm bắt đầu của năm.
+     *
+     * @param year Năm cần lấy
+     * @return Thời điểm bắt đầu của năm dưới dạng Date
+     */
+    private Date getStartOfYear(int year) {
+        LocalDate startOfYear = LocalDate.of(year, 1, 1);
+        return Date.from(startOfYear.atStartOfDay(ZoneId.systemDefault()).toInstant());
+    }
+
+    /**
+     * Lấy thời điểm bắt đầu của năm kế tiếp.
+     *
+     * @param year Năm hiện tại
+     * @return Thời điểm bắt đầu của năm kế tiếp dưới dạng Date
+     */
+    private Date getStartOfNextYear(int year) {
+        LocalDate startOfNextYear = LocalDate.of(year + 1, 1, 1);
+        return Date.from(startOfNextYear.atStartOfDay(ZoneId.systemDefault()).toInstant());
+    }
 
 
 
