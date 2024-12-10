@@ -16,12 +16,18 @@ import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
+import java.util.Map;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
 import javafx.scene.text.FontWeight;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.stage.Stage;
 import java.util.List;
 import java.util.ArrayList;
 import java.time.format.DateTimeFormatter;
+import java.text.SimpleDateFormat;
+import org.bson.Document;
 import java.time.LocalDate;
 import java.util.Date;
 import java.time.ZoneId;
@@ -35,9 +41,6 @@ import java.util.Optional;
 public class AdminPanelInterface extends Application {
     private ObservableList<User> userData;
     private TableView<User> userTable;
-    private ObservableList<UserActivity> userActivityData;
-    private TableView<UserActivity> userActivityTable;
-
     // Dữ liệu cho các tab mới
     private ObservableList<ChatGroup> chatGroupData;
     private TableView<ChatGroup> chatGroupTable;
@@ -66,10 +69,10 @@ public class AdminPanelInterface extends Application {
         Tab userManagementTab = new Tab("Quản lý Người dùng", createUserManagementContent());
         userManagementTab.setClosable(false);
 
-        Tab userActivityTab = new Tab("Hoạt động Người dùng", createUserActivityContent());
+        Tab userActivityTab = new Tab("Hoạt động Người dùng", createActivityLogContent());
         userActivityTab.setClosable(false);
 
-        Tab loginHistoryTab = new Tab("Lịch Sử Đăng Nhập", createUserActivityContent());
+        Tab loginHistoryTab = new Tab("Lịch Sử Đăng Nhập", createLoginHistoryContent());
         loginHistoryTab.setClosable(false);
 
         Tab chatGroupsTab = new Tab("Quản lý Nhóm Chat", createChatGroupsContent());
@@ -98,7 +101,7 @@ public class AdminPanelInterface extends Application {
         root.setCenter(tabPane);
 
         // Thiết lập cảnh và stage
-        Scene scene = new Scene(root, 1400, 900);
+        Scene scene = new Scene(root, 1300, 800);
         scene.getStylesheets().add(getClass().getResource("/com/example/javaproject/adminstyle.css").toExternalForm());
         primaryStage.setTitle("Admin Panel");
         primaryStage.setScene(scene);
@@ -112,6 +115,9 @@ public class AdminPanelInterface extends Application {
      */
     private MenuBar createMenuBar() {
         MenuBar menuBar = new MenuBar();
+
+        // Đặt màu nền cho MenuBar
+        menuBar.setStyle("-fx-background-color: #C1BAA1;");
 
         // Menu File
         Menu fileMenu = new Menu("File");
@@ -129,10 +135,18 @@ public class AdminPanelInterface extends Application {
         aboutItem.setOnAction(e -> showAboutDialog());
         helpMenu.getItems().add(aboutItem);
 
+        // Đặt màu nền cho các MenuItem
+        for (Menu menu : menuBar.getMenus()) {
+            for (MenuItem item : menu.getItems()) {
+                item.setStyle("-fx-background-color: #8BC34A; -fx-text-fill: white;");
+            }
+        }
+
         menuBar.getMenus().addAll(fileMenu, editMenu, helpMenu);
 
         return menuBar;
     }
+
 
     /**
      * Tạo nội dung cho tab Quản lý Người dùng.
@@ -147,7 +161,9 @@ public class AdminPanelInterface extends Application {
         Label userManagementLabel = new Label("Quản lý Người dùng");
         userManagementLabel.setFont(Font.font("Arial", FontWeight.BOLD, 20));
         userManagementLabel.setTextFill(Color.DARKSLATEGRAY);
-// Bộ lọc cho Quản lý Người dùng
+
+
+        // Bộ lọc cho Quản lý Người dùng
         HBox userFilterBox = new HBox(10);
         userFilterBox.setAlignment(Pos.CENTER_LEFT);
         TextField filterUsernameField = new TextField();
@@ -157,12 +173,12 @@ public class AdminPanelInterface extends Application {
         ComboBox<String> filterStatusComboBox = new ComboBox<>();
         filterStatusComboBox.setPromptText("Lọc theo Trạng thái");
         filterStatusComboBox.setItems(FXCollections.observableArrayList("Active", "Locked"));
-        Button applyUserFilterButton = new Button("Áp dụng Lọc");
+        Button applyUserFilterButton = new Button("Áp dụng");
 
         applyUserFilterButton.setOnAction(e -> applyUserFilter(filterUsernameField.getText(), filterFullNameField.getText(), filterStatusComboBox.getValue()));
         userFilterBox.getChildren().addAll(filterUsernameField, filterFullNameField, filterStatusComboBox, applyUserFilterButton);
 
-// Bảng hiển thị thông tin người dùng
+        // Bảng hiển thị thông tin người dùng
         userTable = new TableView<>();
         userTable.setStyle("-fx-background-radius: 10; -fx-border-radius: 10;");
         userTable.setPrefHeight(300);
@@ -186,11 +202,11 @@ public class AdminPanelInterface extends Application {
         TableColumn<User, String> genderColumn = new TableColumn<>("Giới tính");
         genderColumn.setCellValueFactory(new PropertyValueFactory<>("gender"));
 
-// Cột "Bạn bè trực tiếp" - số lượng bạn bè
+        // Cột "Bạn bè trực tiếp" - số lượng bạn bè
         TableColumn<User, Integer> directFriendsColumn = new TableColumn<>("Bạn bè trực tiếp");
         directFriendsColumn.setCellValueFactory(user -> new SimpleIntegerProperty(user.getValue().getDirectFriends()).asObject());
 
-// Cột "Số lượng bạn của bạn"
+        // Cột "Số lượng bạn của bạn"
         TableColumn<User, Integer> totalFriendsColumn = new TableColumn<>("Số lượng bạn của bạn");
         totalFriendsColumn.setCellValueFactory(user -> {
             MongoDBConnection mongoDBConnection = new MongoDBConnection();
@@ -203,12 +219,11 @@ public class AdminPanelInterface extends Application {
         List<User> usersFromDB = mongoDBConnection.fetchUsers();
         mongoDBConnection.close();
 
-// Chuyển đổi List<User> thành ObservableList
+        // Chuyển đổi List<User> thành ObservableList
         ObservableList<User> userData = FXCollections.observableArrayList(usersFromDB);
 
-// Cập nhật bảng userTable với dữ liệu lấy từ MongoDB
+        // Cập nhật bảng userTable với dữ liệu lấy từ MongoDB
         userTable.setItems(userData);
-
 
         // Hành động người dùng
         HBox userActionsBox = new HBox(15);
@@ -222,8 +237,7 @@ public class AdminPanelInterface extends Application {
         Button updatePasswordButton = new Button("Cập nhật Mật khẩu");
         Button viewLoginHistoryButton = new Button("Xem Lịch sử Đăng nhập");
         Button viewFriendsListButton = new Button("Xem Danh sách Bạn bè");
-        Button showNewUsersChartButton = new Button("Hiển thị Biểu đồ Người dùng Mới");
-        Button showActiveUsersChartButton = new Button("Hiển thị Biểu đồ Người dùng Hoạt động");
+
 
         addUserButton.getStyleClass().add("admin-button");
         updateUserButton.getStyleClass().add("admin-button");
@@ -232,8 +246,7 @@ public class AdminPanelInterface extends Application {
         updatePasswordButton.getStyleClass().add("admin-button");
         viewLoginHistoryButton.getStyleClass().add("admin-button");
         viewFriendsListButton.getStyleClass().add("admin-button");
-        showNewUsersChartButton.getStyleClass().add("admin-button");
-        showActiveUsersChartButton.getStyleClass().add("admin-button");
+
 
         addUserButton.setOnAction(e -> addUser());
         updateUserButton.setOnAction(e -> {
@@ -260,7 +273,6 @@ public class AdminPanelInterface extends Application {
             }
         });
 
-
         updatePasswordButton.setOnAction(e -> {
             User selectedUser = userTable.getSelectionModel().getSelectedItem();
             if (selectedUser != null) {
@@ -284,65 +296,95 @@ public class AdminPanelInterface extends Application {
         viewLoginHistoryButton.setOnAction(e -> {
             User selectedUser = userTable.getSelectionModel().getSelectedItem();
             if (selectedUser != null) {
-                //showLoginHistory(selectedUser);
+                showUserLoginHistory(selectedUser);
             }
         });
 
-        showNewUsersChartButton.setOnAction(e -> showNewUsersChart(2024));
-        showActiveUsersChartButton.setOnAction(e -> showActiveUsersChart(2024));
 
-        userActionsBox.getChildren().addAll(
-                addUserButton, updateUserButton, deleteUserButton, lockUserButton,
-                updatePasswordButton, viewLoginHistoryButton, viewFriendsListButton,
-                showNewUsersChartButton, showActiveUsersChartButton
-        );
 
+
+
+
+        userActionsBox.getChildren().addAll(addUserButton, updateUserButton, deleteUserButton, lockUserButton, updatePasswordButton, viewLoginHistoryButton, viewFriendsListButton);
+
+        // Tạo một hộp dọc cho toàn bộ phần Quản lý Người dùng
         userManagementBox.getChildren().addAll(userManagementLabel, userFilterBox, userTable, userActionsBox);
+
         return userManagementBox;
     }
+
+    private VBox createLoginHistoryContent() {
+        MongoDBConnection mongoDBConnection = new MongoDBConnection();
+        VBox loginHistoryBox = new VBox(15);
+        loginHistoryBox.setPadding(new Insets(20));
+        loginHistoryBox.setStyle("-fx-background-color: #f0f4f7; -fx-border-radius: 10; -fx-background-radius: 10;");
+
+        Label loginHistoryLabel = new Label("Lịch sử Đăng nhập");
+        loginHistoryLabel.setFont(Font.font("Arial", FontWeight.BOLD, 20));
+        loginHistoryLabel.setTextFill(Color.DARKSLATEGRAY);
+
+        TableView<LoginHistory> loginHistoryTable = new TableView<>();
+        loginHistoryTable.setStyle("-fx-background-radius: 10; -fx-border-radius: 10;");
+        loginHistoryTable.setPrefHeight(300);
+        loginHistoryTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+
+        // Cột thời gian đăng nhập
+        TableColumn<LoginHistory, String> loginTimeColumn = new TableColumn<>("Thời gian");
+        loginTimeColumn.setCellValueFactory(cellData -> new SimpleStringProperty(cellData.getValue().getLoginTime().toString()));
+
+        // Cột tên đăng nhập
+        TableColumn<LoginHistory, String> usernameColumn = new TableColumn<>("Tên đăng nhập");
+        usernameColumn.setCellValueFactory(cellData -> {
+            // Lấy tên đăng nhập từ userId
+            User user = mongoDBConnection.getUserById(cellData.getValue().getUserId());
+            return new SimpleStringProperty(user != null ? user.getUsername() : "Không tìm thấy");
+        });
+
+        // Cột họ tên
+        TableColumn<LoginHistory, String> fullNameColumn = new TableColumn<>("Họ tên");
+        fullNameColumn.setCellValueFactory(cellData -> {
+            // Lấy họ tên từ userId
+            User user = mongoDBConnection.getUserById(cellData.getValue().getUserId());
+            return new SimpleStringProperty(user != null ? user.getFullName() : "Không tìm thấy");
+        });
+
+        // Thêm các cột vào bảng
+        loginHistoryTable.getColumns().addAll(loginTimeColumn, usernameColumn, fullNameColumn);
+
+        // Lấy danh sách lịch sử đăng nhập từ MongoDB
+        List<LoginHistory> loginHistoryData = new ArrayList<>();
+
+        // Giả sử bạn đã có phương thức getAllLoginHistory() để lấy dữ liệu lịch sử đăng nhập từ MongoDB
+        List<Document> loginHistoryDocuments = mongoDBConnection.getAllLoginHistory();
+
+        for (Document doc : loginHistoryDocuments) {
+            ObjectId userId = doc.getObjectId("user_id");
+            String ipAddress = doc.getString("ip_address");
+            Date loginTime = doc.getDate("login_time");
+
+            // Tạo đối tượng LoginHistory
+            LoginHistory loginHistory = new LoginHistory(doc.getObjectId("_id"), userId, ipAddress, loginTime);
+            loginHistoryData.add(loginHistory);
+        }
+
+        // Chuyển đổi danh sách thành ObservableList để hiển thị trong TableView
+        ObservableList<LoginHistory> observableLoginHistoryData = FXCollections.observableArrayList(loginHistoryData);
+        loginHistoryTable.setItems(observableLoginHistoryData);
+
+        // Thêm bảng vào VBox
+        loginHistoryBox.getChildren().addAll(loginHistoryLabel, loginHistoryTable);
+        return loginHistoryBox;
+    }
+
+
+
 
     /**
      * Tạo nội dung cho tab Hoạt động Người dùng.
      *
      * @return Node chứa nội dung hoạt động người dùng.
      */
-    private VBox createUserActivityContent() {
-        VBox userActivityBox = new VBox(15);
-        userActivityBox.setPadding(new Insets(20));
-        userActivityBox.setStyle("-fx-background-color: #f0f4f7; -fx-border-radius: 10; -fx-background-radius: 10;");
 
-        Label userActivityLabel = new Label("Hoạt động Người dùng");
-        userActivityLabel.setFont(Font.font("Arial", FontWeight.BOLD, 20));
-        userActivityLabel.setTextFill(Color.DARKSLATEGRAY);
-
-        userActivityTable = new TableView<>();
-        userActivityTable.setStyle("-fx-background-radius: 10; -fx-border-radius: 10;");
-        userActivityTable.setPrefHeight(300);
-        userActivityTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
-
-        TableColumn<UserActivity, String> activityUsernameColumn = new TableColumn<>("Tên đăng nhập");
-        activityUsernameColumn.setCellValueFactory(new PropertyValueFactory<>("username"));
-
-        TableColumn<UserActivity, Integer> activitySessionsColumn = new TableColumn<>("Phiên");
-        activitySessionsColumn.setCellValueFactory(new PropertyValueFactory<>("sessions"));
-
-        TableColumn<UserActivity, Integer> activityChatsColumn = new TableColumn<>("Trò chuyện");
-        activityChatsColumn.setCellValueFactory(new PropertyValueFactory<>("chats"));
-
-        TableColumn<UserActivity, Integer> activityGroupsColumn = new TableColumn<>("Nhóm");
-        activityGroupsColumn.setCellValueFactory(new PropertyValueFactory<>("groups"));
-
-        userActivityTable.getColumns().addAll(activityUsernameColumn, activitySessionsColumn, activityChatsColumn, activityGroupsColumn);
-
-        userActivityData = FXCollections.observableArrayList(
-                new UserActivity("john_doe", 10, 5, 3),
-                new UserActivity("jane_smith", 8, 4, 2)
-        );
-        userActivityTable.setItems(userActivityData);
-
-        userActivityBox.getChildren().addAll(userActivityLabel, userActivityTable);
-        return userActivityBox;
-    }
 
     /**
      * Tạo nội dung cho tab Quản lý Nhóm Chat.
@@ -510,11 +552,26 @@ public class AdminPanelInterface extends Application {
         lockUserButton.getStyleClass().add("admin-button");
 
         lockUserButton.setOnAction(e -> {
+            // Lấy SpamReport đã chọn từ bảng
             SpamReport selectedReport = spamReportTable.getSelectionModel().getSelectedItem();
+
             if (selectedReport != null) {
-                lockUserAccount(selectedReport.getReported_id());
+                ObjectId reportedId = selectedReport.getReported_id();
+
+
+                User reportedUser = mongoDBConnection.getUserById(reportedId);
+
+
+                if (reportedUser != null) {
+                    lockUnlockUser(reportedUser); // Gọi hàm khóa/mở khóa người dùng
+                } else {
+                    showAlert("Lỗi", "Không tìm thấy người dùng!", Alert.AlertType.ERROR);
+                }
+            } else {
+                showAlert("Lỗi", "Vui lòng chọn báo cáo spam để thực hiện thao tác!", Alert.AlertType.ERROR);
             }
         });
+
 
         spamReportActionsBox.getChildren().addAll(lockUserButton);
 
@@ -566,7 +623,51 @@ public class AdminPanelInterface extends Application {
         sortNewUserComboBox.setItems(FXCollections.observableArrayList("Tên", "Thời gian tạo"));
 
         Button applyNewUserFilterButton = new Button("Áp dụng");
+        applyNewUserFilterButton.setOnAction(e ->
+                applyNewUserFilter(
+                        startDatePicker.getValue(),
+                        endDatePicker.getValue(),
+                        sortNewUserComboBox.getValue(),
+                        filterNewUserNameField.getText()
+                )
+        );
 
+        // Tạo ComboBox cho năm
+        ComboBox<Integer> yearComboBox = new ComboBox<>();
+        int currentYear = java.time.Year.now().getValue();  // Lấy năm hiện tại
+
+        // Thêm các năm vào ComboBox (ví dụ từ 2000 đến năm hiện tại)
+        for (int year = 2000; year <= currentYear; year++) {
+            yearComboBox.getItems().add(year);
+        }
+        yearComboBox.setValue(currentYear);
+
+        Button showNewUsersChartButton = new Button("Hiển thị Biểu đồ Người dùng Mới");
+        showNewUsersChartButton.getStyleClass().add("admin-button");
+
+        // Lắng nghe sự kiện của showNewUsersChartButton
+        showNewUsersChartButton.setOnAction(e -> {
+            Integer selectedYear = yearComboBox.getValue();  // Lấy năm người dùng chọn từ ComboBox
+            if (selectedYear != null) {
+                showNewUsersChart(selectedYear);  // Gọi hàm vẽ biểu đồ với năm người dùng chọn
+            }
+        });
+
+        // Thêm Label thông báo trước ComboBox và Button
+        Label yearSelectionLabel = new Label("Chọn năm cần vẽ biểu đồ số lượng người đăng ký mới:");
+        yearSelectionLabel.setFont(Font.font("Arial", FontWeight.NORMAL, 14));
+        yearSelectionLabel.setTextFill(Color.DARKSLATEGRAY);
+
+        // Tạo HBox cho ComboBox và Button ở cùng một hàng
+        HBox yearSelectionBox = new HBox(10);
+        yearSelectionBox.setAlignment(Pos.CENTER_LEFT);
+        yearSelectionBox.getChildren().addAll(yearComboBox, showNewUsersChartButton);
+
+        // Thêm Label và HBox vào một VBox
+        VBox yearSelectionContainer = new VBox(5);
+        yearSelectionContainer.getChildren().addAll(yearSelectionLabel, yearSelectionBox);
+
+        // Thêm các phần tử vào newUsersFilterBox
         newUsersFilterBox.getChildren().addAll(startDatePicker, endDatePicker, sortNewUserComboBox, filterNewUserNameField, applyNewUserFilterButton);
 
         // Bảng hiển thị danh sách người dùng mới
@@ -598,10 +699,11 @@ public class AdminPanelInterface extends Application {
         newUserActionsBox.setAlignment(Pos.CENTER);
         newUserActionsBox.setPadding(new Insets(10));
 
-        newUsersBox.getChildren().addAll(newUsersLabel, newUsersFilterBox, newUserTable, newUserActionsBox);
+        // Thêm các phần tử vào newUsersBox
+        newUsersBox.getChildren().addAll(newUsersLabel, newUsersFilterBox, yearSelectionContainer, newUserTable, newUserActionsBox);
+
         return newUsersBox;
     }
-
 
 
     /**
@@ -609,7 +711,10 @@ public class AdminPanelInterface extends Application {
      *
      * @return Node chứa nội dung danh sách người dùng và bạn bè.
      */
+
+
     private VBox createUserWithFriendsContent() {
+        MongoDBConnection mongoDBConnection = new MongoDBConnection();
         VBox userWithFriendsBox = new VBox(15);
         userWithFriendsBox.setPadding(new Insets(20));
         userWithFriendsBox.setStyle("-fx-background-color: #f0f4f7; -fx-border-radius: 10; -fx-background-radius: 10;");
@@ -669,10 +774,32 @@ public class AdminPanelInterface extends Application {
 
         userWithFriendsTable.getColumns().addAll(uwfUsernameColumn, uwfDirectFriendsColumn, uwfFriendsOfFriendsColumn);
 
-        userWithFriendsData = FXCollections.observableArrayList(
-                new UserWithFriends("user1", 5, 10),
-                new UserWithFriends("user2", 3, 6)
-        );
+        // Fetch actual users from database
+        List<User> users = mongoDBConnection.fetchUsers();  // Fetch users from database
+        List<UserWithFriends> userWithFriendsList = new ArrayList<>();
+
+        for (User user : users) {
+            int directFriends = user.getFriends() != null ? user.getFriends().size() : 0;
+
+            // Fetch friends of friends
+            Set<ObjectId> friendsOfFriends = new HashSet<>();
+            for (ObjectId friendId : user.getFriends()) {
+                List<User> friendUsers = mongoDBConnection.fetchUsersByFriend(friendId);
+                for (User friend : friendUsers) {
+                    friendsOfFriends.add(friend.getId());
+                }
+            }
+            // Remove userId from friendsOfFriends list to avoid showing the user themselves
+            friendsOfFriends.remove(user.getId());
+
+            int friendsOfFriendsCount = friendsOfFriends.size();
+
+            // Add to the list to display in TableView
+            userWithFriendsList.add(new UserWithFriends(user.getUsername(), directFriends, friendsOfFriendsCount));
+        }
+
+        // Set the data for TableView
+        userWithFriendsData = FXCollections.observableArrayList(userWithFriendsList);
         userWithFriendsTable.setItems(userWithFriendsData);
 
         // Hành động cho danh sách người dùng và bạn bè
@@ -690,6 +817,8 @@ public class AdminPanelInterface extends Application {
         return userWithFriendsBox;
     }
 
+
+
     /**
      * Hiển thị hộp thoại "About".
      */
@@ -697,7 +826,7 @@ public class AdminPanelInterface extends Application {
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
         alert.setTitle("Giới thiệu");
         alert.setHeaderText("Admin Panel");
-        alert.setContentText("Ứng dụng quản lý người dùng được phát triển bằng JavaFX.");
+        alert.setContentText("Ứng dụng dành cho quản trị viên của Chat App.");
         alert.showAndWait();
     }
 
@@ -873,7 +1002,10 @@ public class AdminPanelInterface extends Application {
     private void applySpamReportFilter(String sortBy, java.time.LocalDate filterTime, String filterUsername) {
         ObservableList<SpamReport> filteredData = FXCollections.observableArrayList();
 
-        for (SpamReport report : spamReportData) {
+        // Dữ liệu báo cáo spam đã được lấy từ MongoDB
+        List<SpamReport> spamReports = FXCollections.observableArrayList(spamReportTable.getItems());
+
+        for (SpamReport report : spamReports) {
             boolean matches = true;
 
             // Kiểm tra ngày nếu có lọc theo thời gian
@@ -947,24 +1079,24 @@ public class AdminPanelInterface extends Application {
         for (User newUser : newUserData) {
             boolean matches = true;
 
+
+            LocalDate registrationDate = newUser.getCreatedAt().toInstant()
+                    .atZone(ZoneId.systemDefault())
+                    .toLocalDate();
+
             // Kiểm tra ngày bắt đầu
-            if (startDate != null) {
-                LocalDate registrationDate = LocalDate.parse(newUser.getCreatedAt().toString()); // Chuyển đổi ngày từ Date sang LocalDate
-                if (registrationDate.isBefore(startDate)) {
-                    matches = false;
-                }
+            if (startDate != null && registrationDate.isBefore(startDate)) {
+                matches = false;
             }
 
             // Kiểm tra ngày kết thúc
-            if (endDate != null) {
-                LocalDate registrationDate = LocalDate.parse(newUser.getCreatedAt().toString()); // Chuyển đổi ngày từ Date sang LocalDate
-                if (registrationDate.isAfter(endDate)) {
-                    matches = false;
-                }
+            if (endDate != null && registrationDate.isAfter(endDate)) {
+                matches = false;
             }
 
             // Kiểm tra tên người dùng
-            if (filterName != null && !filterName.isEmpty() && !newUser.getUsername().toLowerCase().contains(filterName.toLowerCase())) {
+            if (filterName != null && !filterName.isEmpty() &&
+                    !newUser.getUsername().toLowerCase().contains(filterName.toLowerCase())) {
                 matches = false;
             }
 
@@ -980,8 +1112,8 @@ public class AdminPanelInterface extends Application {
                 FXCollections.sort(filteredData, (u1, u2) -> u1.getUsername().compareToIgnoreCase(u2.getUsername()));
             } else if (sortBy.equals("Thời gian tạo")) {
                 FXCollections.sort(filteredData, (u1, u2) -> {
-                    LocalDate date1 = LocalDate.parse(u1.getCreatedAt().toString());
-                    LocalDate date2 = LocalDate.parse(u2.getCreatedAt().toString());
+                    LocalDate date1 = u1.getCreatedAt().toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+                    LocalDate date2 = u2.getCreatedAt().toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
                     return date1.compareTo(date2);
                 });
             }
@@ -1057,32 +1189,44 @@ public class AdminPanelInterface extends Application {
 
     private void showNewUsersChart(int year) {
         Stage chartStage = new Stage();
-        chartStage.setTitle("Đăng ký Người dùng Mới - " + year);
+        chartStage.setTitle("Người Dùng Mới Đăng Ký - " + year);
 
+        // Tạo trục X cho biểu đồ (Tháng)
         NumberAxis xAxis = new NumberAxis(1, 12, 1);
         xAxis.setLabel("Tháng");
 
+        // Tạo trục Y cho biểu đồ (Số lượng đăng ký)
         NumberAxis yAxis = new NumberAxis();
         yAxis.setLabel("Số lượng Đăng ký");
 
+        // Tạo LineChart
         LineChart<Number, Number> lineChart = new LineChart<>(xAxis, yAxis);
-        lineChart.setTitle("Đăng ký Người dùng Mới trong Năm " + year);
+        lineChart.setTitle("Người dùng Mới trong Năm " + year);
 
+        // Tạo một series dữ liệu
         XYChart.Series<Number, Number> dataSeries = new XYChart.Series<>();
         dataSeries.setName("Đăng ký");
 
-        // Truy vấn MongoDB để lấy số lượng người dùng mới trong từng tháng của năm
+        // Truy vấn MongoDB để lấy số lượng người dùng mới theo tháng
         MongoDBConnection mongoDBConnection = new MongoDBConnection();
         List<Integer> monthlyUserCounts = mongoDBConnection.getUserCountsByMonth(year);
 
+        // Kiểm tra nếu danh sách dữ liệu rỗng hoặc null
+        if (monthlyUserCounts == null || monthlyUserCounts.size() != 12) {
+            // Nếu không có dữ liệu, tạo mảng 0 cho 12 tháng
+            monthlyUserCounts = new ArrayList<>(Collections.nCopies(12, 0));
+        }
+
         // Thêm dữ liệu vào biểu đồ (mỗi tháng 1 điểm dữ liệu)
         for (int month = 1; month <= 12; month++) {
-            int userCount = (monthlyUserCounts.size() >= month) ? monthlyUserCounts.get(month - 1) : 0;
+            int userCount = monthlyUserCounts.get(month - 1);  // Lấy số lượng người dùng cho tháng
             dataSeries.getData().add(new XYChart.Data<>(month, userCount));
         }
 
+        // Thêm series vào biểu đồ
         lineChart.getData().add(dataSeries);
 
+        // Hiển thị biểu đồ trong một cửa sổ mới
         Scene chartScene = new Scene(lineChart, 800, 600);
         chartStage.setScene(chartScene);
         chartStage.show();
@@ -1090,33 +1234,55 @@ public class AdminPanelInterface extends Application {
 
 
     /**
-     * Hiển thị biểu đồ số người dùng hoạt động trong năm.
+     * Vẽ biểu đồ số lượng người dùng hoạt động mỗi tháng trong một năm cụ thể.
      *
-     * @param year Năm cần hiển thị biểu đồ.
+     * @param year Năm cần hiển thị
      */
-    private void showActiveUsersChart(int year) {
+    public void showActiveUsersChart(int year) {
         Stage chartStage = new Stage();
-        chartStage.setTitle("Người dùng Hoạt động - " + year);
+        chartStage.setTitle("Số lượng Người Dùng Hoạt Động - " + year);
 
+        // Tạo trục X cho biểu đồ (Tháng)
         NumberAxis xAxis = new NumberAxis(1, 12, 1);
         xAxis.setLabel("Tháng");
 
+        // Tạo trục Y cho biểu đồ (Số lượng người dùng)
         NumberAxis yAxis = new NumberAxis();
-        yAxis.setLabel("Số lượng Người dùng Hoạt động");
+        yAxis.setLabel("Số lượng Người Dùng Hoạt Động");
 
+        // Tạo LineChart
         LineChart<Number, Number> lineChart = new LineChart<>(xAxis, yAxis);
-        lineChart.setTitle("Người dùng Hoạt động trong Năm " + year);
+        lineChart.setTitle("Số lượng Người Dùng Hoạt Động trong Năm " + year);
 
+        // Tạo một series dữ liệu
         XYChart.Series<Number, Number> dataSeries = new XYChart.Series<>();
-        dataSeries.setName("Người dùng Hoạt động");
+        dataSeries.setName("Hoạt Động");
 
-        // Dữ liệu mẫu (thay thế bằng dữ liệu thực tế)
-        for (int month = 1; month <= 12; month++) {
-            dataSeries.getData().add(new XYChart.Data<>(month, Math.random() * 100));
+        // Truy vấn MongoDB để lấy số lượng người dùng hoạt động theo tháng
+        MongoDBConnection mongoDBConnection = new MongoDBConnection();
+        List<Integer> monthlyActiveUserCounts = mongoDBConnection.getActiveUserCountsByMonth(year);
+
+        // Kiểm tra nếu danh sách dữ liệu rỗng hoặc null
+        if (monthlyActiveUserCounts == null || monthlyActiveUserCounts.size() != 12) {
+            // Nếu không có dữ liệu, tạo mảng 0 cho 12 tháng
+            monthlyActiveUserCounts = new ArrayList<>(Collections.nCopies(12, 0));
         }
 
+        // Thêm dữ liệu vào biểu đồ (mỗi tháng 1 điểm dữ liệu)
+        for (int month = 1; month <= 12; month++) {
+            int userCount = monthlyActiveUserCounts.get(month - 1);  // Lấy số lượng người dùng cho tháng
+            dataSeries.getData().add(new XYChart.Data<>(month, userCount));
+        }
+
+        // Thêm series vào biểu đồ
         lineChart.getData().add(dataSeries);
 
+        // Thiết lập kiểu biểu đồ (ví dụ: đường)
+        lineChart.setCreateSymbols(true); // Hiển thị các điểm dữ liệu
+
+        // Tùy chỉnh thêm nếu cần (màu sắc, kích thước, vv.)
+
+        // Hiển thị biểu đồ trong một cửa sổ mới
         Scene chartScene = new Scene(lineChart, 800, 600);
         chartStage.setScene(chartScene);
         chartStage.show();
@@ -1533,6 +1699,200 @@ public class AdminPanelInterface extends Application {
         friendStage.show();
     }
 
+    private void showUserLoginHistory(User selectedUser) {
+        // Lấy danh sách lịch sử đăng nhập của người dùng
+        MongoDBConnection mongoDBConnection = new MongoDBConnection();
+        List<Document> loginHistoryDocuments = mongoDBConnection.getUserLoginHistory(selectedUser.getId());
+
+        // Chuyển đổi danh sách Document thành danh sách đối tượng LoginHistory
+        List<LoginHistory> loginHistories = new ArrayList<>();
+        for (Document doc : loginHistoryDocuments) {
+            ObjectId id = doc.getObjectId("_id");
+            ObjectId userId = doc.getObjectId("user_id");
+            String ipAddress = doc.getString("ip_address");
+            Date loginTime = doc.getDate("login_time");
+
+            loginHistories.add(new LoginHistory(id, userId, ipAddress, loginTime));
+        }
+
+        // Hiển thị lịch sử đăng nhập trong cửa sổ mới (hoặc bất kỳ giao diện nào bạn muốn)
+        displayLoginHistoryWindow(loginHistories);
+    }
+    private void displayLoginHistoryWindow(List<LoginHistory> loginHistories) {
+        // Tạo cửa sổ mới hoặc giao diện mới để hiển thị lịch sử đăng nhập
+        Stage stage = new Stage();
+        stage.setTitle("Lịch sử đăng nhập");
+
+        // Tạo layout cho cửa sổ mới
+        VBox vbox = new VBox();
+        vbox.setSpacing(10);
+        vbox.setPadding(new Insets(10));
+
+        // Tạo bảng hiển thị lịch sử đăng nhập
+        TableView<LoginHistory> tableView = new TableView<>();
+        TableColumn<LoginHistory, Date> loginTimeColumn = new TableColumn<>("Thời gian đăng nhập");
+        loginTimeColumn.setCellValueFactory(new PropertyValueFactory<>("loginTime"));
+
+        TableColumn<LoginHistory, String> ipAddressColumn = new TableColumn<>("Địa chỉ IP");
+        ipAddressColumn.setCellValueFactory(new PropertyValueFactory<>("ipAddress"));
+
+        tableView.getColumns().addAll(loginTimeColumn, ipAddressColumn);
+
+        // Thêm dữ liệu vào bảng
+        tableView.setItems(FXCollections.observableArrayList(loginHistories));
+
+        // Thêm bảng vào layout
+        vbox.getChildren().add(tableView);
+
+        // Hiển thị cửa sổ
+        Scene scene = new Scene(vbox, 400, 300);
+        stage.setScene(scene);
+        stage.show();
+    }
+
+    private TableView<ActivityLog> activityLogTable;
+    private ObservableList<ActivityLog> activityLogData;
+
+    public VBox createActivityLogContent() {
+        MongoDBConnection mongoDBConnection = new MongoDBConnection();
+        VBox activityLogBox = new VBox(15);
+        activityLogBox.setPadding(new Insets(20));
+        activityLogBox.setStyle("-fx-background-color: #f0f4f7; -fx-border-radius: 10; -fx-background-radius: 10;");
+
+        Label activityLogLabel = new Label("Danh sách Người dùng Hoạt động");
+        activityLogLabel.setFont(Font.font("Arial", FontWeight.BOLD, 20));
+        activityLogLabel.setTextFill(Color.DARKSLATEGRAY);
+
+        // Bộ lọc cho hoạt động người dùng
+        HBox activityLogFilterBox = new HBox(10);
+        activityLogFilterBox.setAlignment(Pos.CENTER_LEFT);
+
+        DatePicker startDatePicker = new DatePicker();
+        startDatePicker.setPromptText("Ngày bắt đầu");
+
+        DatePicker endDatePicker = new DatePicker();
+        endDatePicker.setPromptText("Ngày kết thúc");
+
+        Button applyFilterButton = new Button("Áp dụng");
+        //applyFilterButton.setOnAction(e -> applyActivityLogFilter(startDatePicker.getValue(), endDatePicker.getValue()));
+
+        // Tạo ComboBox cho năm
+        ComboBox<Integer> yearComboBox = new ComboBox<>();
+        int currentYear = java.time.Year.now().getValue();
+
+        // Thêm các năm vào ComboBox
+        for (int year = 2000; year <= currentYear; year++) {
+            yearComboBox.getItems().add(year);
+        }
+        yearComboBox.setValue(currentYear);
+
+        Button showActiveUsersChartButton = new Button("Hiển thị Biểu đồ Người dùng Hoạt Động");
+        showActiveUsersChartButton.getStyleClass().add("admin-button");
+
+        // Lắng nghe sự kiện của showActiveUsersChartButton
+        showActiveUsersChartButton.setOnAction(e -> {
+            Integer selectedYear = yearComboBox.getValue();  // Lấy năm người dùng chọn từ ComboBox
+            if (selectedYear != null) {
+                showActiveUsersChart(selectedYear);  // Gọi hàm vẽ biểu đồ với năm người dùng chọn
+            }
+        });
+
+        // Thêm Label hướng dẫn người dùng chọn năm
+        Label yearSelectionLabel = new Label("Chọn năm cần hiển thị số lượng người dùng hoạt động:");
+        yearSelectionLabel.setFont(Font.font("Arial", FontWeight.NORMAL, 14));
+        yearSelectionLabel.setTextFill(Color.DARKSLATEGRAY);
+
+        // Tạo HBox cho ComboBox và Button
+        HBox yearSelectionBox = new HBox(10);
+        yearSelectionBox.setAlignment(Pos.CENTER_LEFT);
+        yearSelectionBox.getChildren().addAll(yearComboBox, showActiveUsersChartButton);
+
+        // Gộp Label và HBox vào một VBox
+        VBox yearSelectionContainer = new VBox(5);
+        yearSelectionContainer.getChildren().addAll(yearSelectionLabel, yearSelectionBox);
+
+        // Thêm các phần tử vào activityLogFilterBox
+        activityLogFilterBox.getChildren().addAll(startDatePicker, endDatePicker, applyFilterButton);
+
+        // Bảng hiển thị danh sách hoạt động người dùng
+        activityLogTable = new TableView<>();
+        activityLogTable.setStyle("-fx-background-radius: 10; -fx-border-radius: 10;");
+        activityLogTable.setPrefHeight(300);
+        activityLogTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+
+        TableColumn<ActivityLog, String> usernameColumn = new TableColumn<>("Tên đăng nhập");
+        usernameColumn.setCellValueFactory(cellData -> {
+            User user = mongoDBConnection.getUserById(cellData.getValue().getUserId());
+            return new SimpleStringProperty(user != null ? user.getUsername() : "Không tìm thấy");
+        });
+
+        TableColumn<ActivityLog, String> actionColumn = new TableColumn<>("Hành động");
+        actionColumn.setCellValueFactory(new PropertyValueFactory<>("action"));
+
+        TableColumn<ActivityLog, Integer> chatWithCountColumn = new TableColumn<>("Chat với bao nhiêu người");
+        //chatWithCountColumn.setCellValueFactory(new PropertyValueFactory<>("chatWithCount"));
+
+        TableColumn<ActivityLog, Integer> chatInGroupsColumn = new TableColumn<>("Chat trong bao nhiêu nhóm");
+        //chatInGroupsColumn.setCellValueFactory(new PropertyValueFactory<>("chatInGroups"));
+
+        TableColumn<ActivityLog, Date> createdAtColumn = new TableColumn<>("Thời gian");
+        createdAtColumn.setCellValueFactory(new PropertyValueFactory<>("createdAt"));
+
+        activityLogTable.getColumns().addAll(usernameColumn, actionColumn, chatWithCountColumn, chatInGroupsColumn, createdAtColumn);
+
+        // Lấy dữ liệu hoạt động từ MongoDB
+        List<ActivityLog> activityLogsFromDB = mongoDBConnection.fetchActivityLogs();  // Lấy danh sách hoạt động từ DB
+
+        activityLogData = FXCollections.observableArrayList(activityLogsFromDB);
+        activityLogTable.setItems(activityLogData);
+
+        // Hành động làm mới
+        HBox activityLogActionsBox = new HBox(15);
+        activityLogActionsBox.setAlignment(Pos.CENTER);
+        activityLogActionsBox.setPadding(new Insets(10));
+
+        Button refreshActivityLogButton = new Button("Làm mới");
+        refreshActivityLogButton.getStyleClass().add("admin-button");
+        refreshActivityLogButton.setOnAction(e -> refreshActivityLog());
+
+        activityLogActionsBox.getChildren().addAll(refreshActivityLogButton);
+
+        // Thêm các phần tử vào activityLogBox
+        activityLogBox.getChildren().addAll(activityLogLabel, activityLogFilterBox, yearSelectionContainer, activityLogTable, activityLogActionsBox);
+
+        return activityLogBox;
+    }
+
+
+    private void applyActivityLogFilter(Date startDate, Date endDate) {
+        // Filter data by date range
+        ObservableList<ActivityLog> filteredData = FXCollections.observableArrayList();
+
+        for (ActivityLog activityLog : activityLogData) {
+            boolean matches = true;
+            if (startDate != null && activityLog.getCreatedAt().before(startDate)) {
+                matches = false;
+            }
+            if (endDate != null && activityLog.getCreatedAt().after(endDate)) {
+                matches = false;
+            }
+            if (matches) {
+                filteredData.add(activityLog);
+            }
+        }
+
+        activityLogTable.setItems(filteredData);
+    }
+
+    private void refreshActivityLog() {
+        MongoDBConnection mongoDBConnection = new MongoDBConnection();
+        List<ActivityLog> updatedActivityLogs = mongoDBConnection.fetchActivityLogs();  // Fetch new data from DB
+        activityLogData.clear();
+        activityLogData.addAll(updatedActivityLogs);
+    }
+
+
+
 
 
     public static void main(String[] args) {
@@ -1540,69 +1900,17 @@ public class AdminPanelInterface extends Application {
     }
 
 
-    /**
-     * Lớp đại diện cho hoạt động người dùng.
-     */
-    public class UserActivity {
-        private String username;
-        private int sessions;
-        private int chats;
-        private int groups;
 
-        public UserActivity(String username, int sessions, int chats, int groups) {
-            this.username = username;
-            this.sessions = sessions;
-            this.chats = chats;
-            this.groups = groups;
-        }
-
-        public String getUsername() {
-            return username;
-        }
-
-        public int getSessions() {
-            return sessions;
-        }
-
-        public int getChats() {
-            return chats;
-        }
-
-        public int getGroups() {
-            return groups;
-        }
+    private String formatDate(Date date) {
+        // Định dạng ngày tháng theo định dạng dễ đọc hơn
+        SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm");
+        return dateFormat.format(date);
     }
 
 
 
-    /**
-     * Lớp đại diện cho người dùng mới đăng ký.
-     */
 
-    /*
-    public class NewUser {
-        private String username;
-        private String fullName;
-        private String registrationDate;
 
-        public NewUser(String username, String fullName, String registrationDate) {
-            this.username = username;
-            this.fullName = fullName;
-            this.registrationDate = registrationDate;
-        }
-
-        public String getUsername() {
-            return username;
-        }
-
-        public String getFullName() {
-            return fullName;
-        }
-
-        public String getRegistrationDate() {
-            return registrationDate;
-        }
-    }*/
 
     /**
      * Lớp đại diện cho người dùng với số lượng bạn bè.
