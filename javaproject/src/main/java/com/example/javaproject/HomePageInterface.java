@@ -1,5 +1,6 @@
 package com.example.javaproject;
 
+import com.mongodb.client.MongoCollection;
 import javafx.application.Application;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -11,8 +12,13 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.stage.Stage;
 import java.util.Random;
+import org.bson.Document;
 import java.util.Optional;
 import javafx.scene.text.FontWeight;
+import java.util.Properties;
+import javax.mail.*;
+import javax.mail.internet.*;
+
 
 
 public class HomePageInterface extends Application {
@@ -86,8 +92,31 @@ public class HomePageInterface extends Application {
         loginButton.setPrefWidth(300);
         loginButton.setStyle("-fx-background-color: #007BFF; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 10;");
         loginButton.setOnAction(e -> {
-            System.out.println("User logged in: " + emailField.getText());
+            String email = emailField.getText();
+            String password = passwordField.getText();
+
+            try (MongoDBConnection mongoDBConnection = new MongoDBConnection()) {
+                boolean isAuthenticated = mongoDBConnection.loginUser(email, password);
+                if (isAuthenticated) {
+                    ChatAppInterface chatAppInterface = new ChatAppInterface();
+                    Stage chatStage = new Stage();
+                    try {
+                        chatAppInterface.start(chatStage);
+                        primaryStage.close();
+                    } catch (Exception ex) {
+                        ex.printStackTrace();
+                    }
+                } else {
+                    Alert alert = new Alert(Alert.AlertType.ERROR);
+                    alert.setTitle("Login Failed");
+                    alert.setHeaderText(null);
+                    alert.setContentText("Invalid email or password. Please try again.");
+                    alert.showAndWait();
+                }
+            }
         });
+
+
         signInGrid.add(loginButton, 0, 4, 2, 1);
 
         signInTab.setContent(signInGrid);
@@ -134,8 +163,28 @@ public class HomePageInterface extends Application {
         registerButton.setPrefWidth(300);
         registerButton.setStyle("-fx-background-color: #007BFF; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 10;");
         registerButton.setOnAction(e -> {
-            System.out.println("User registered: " + userNameField.getText());
+            String username = userNameField.getText();
+            String email = signUpEmailField.getText();
+            String password = signUpPasswordField.getText();
+
+            try (MongoDBConnection mongoDBConnection = new MongoDBConnection()) {
+                boolean isRegistered = mongoDBConnection.registerUser(username, email, password);
+                if (isRegistered) {
+                    Alert alert = new Alert(Alert.AlertType.INFORMATION);
+                    alert.setTitle("Registration Successful");
+                    alert.setHeaderText(null);
+                    alert.setContentText("Account created successfully! You can now login.");
+                    alert.showAndWait();
+                } else {
+                    Alert alert = new Alert(Alert.AlertType.ERROR);
+                    alert.setTitle("Registration Failed");
+                    alert.setHeaderText(null);
+                    alert.setContentText("Username or email already exists. Please try again.");
+                    alert.showAndWait();
+                }
+            }
         });
+
         signUpGrid.add(registerButton, 0, 4, 2, 1);
 
         signUpTab.setContent(signUpGrid);
@@ -154,19 +203,43 @@ public class HomePageInterface extends Application {
         primaryStage.show();
     }
 
-    private void resetPassword() {
-        TextInputDialog dialog = new TextInputDialog();
-        dialog.setTitle("Reset Password");
-        dialog.setHeaderText("Enter your email to reset your password");
-        dialog.setContentText("Email:");
 
-        Optional<String> result = dialog.showAndWait();
-        if (result.isPresent()) {
-            String email = result.get();
-            String newPassword = generateRandomPassword();
-            System.out.println("New password sent to " + email + ": " + newPassword);
+    private void sendEmail(String recipient, String subject, String content) {
+        // Cấu hình thông tin SMTP
+        String host = "smtp.gmail.com";
+        String senderEmail = "valanbun5@gmail.com";
+        String senderPassword = "seoc fjou wics phfp";
+
+        Properties properties = new Properties();
+        properties.put("mail.smtp.auth", "true");
+        properties.put("mail.smtp.starttls.enable", "true");
+        properties.put("mail.smtp.host", host);
+        properties.put("mail.smtp.port", "587");
+
+        Session session = Session.getInstance(properties, new Authenticator() {
+            @Override
+            protected PasswordAuthentication getPasswordAuthentication() {
+                return new PasswordAuthentication(senderEmail, senderPassword);
+            }
+        });
+
+        try {
+            // Tạo email
+            Message message = new MimeMessage(session);
+            message.setFrom(new InternetAddress(senderEmail));
+            message.setRecipients(Message.RecipientType.TO, InternetAddress.parse(recipient));
+            message.setSubject(subject);
+            message.setText(content);
+
+            // Gửi email
+            Transport.send(message);
+            System.out.println("Email sent successfully to " + recipient);
+        } catch (MessagingException e) {
+            e.printStackTrace();
+            System.out.println("Failed to send email.");
         }
     }
+
 
     private String generateRandomPassword() {
         int length = 8;
@@ -178,6 +251,53 @@ public class HomePageInterface extends Application {
         }
         return password.toString();
     }
+
+
+
+
+    private void resetPassword() {
+        TextInputDialog dialog = new TextInputDialog();
+        dialog.setTitle("Reset Password");
+        dialog.setHeaderText("Enter your email to reset your password");
+        dialog.setContentText("Email:");
+
+        Optional<String> result = dialog.showAndWait();
+        if (result.isPresent()) {
+            String email = result.get();
+            String newPassword = generateRandomPassword();
+
+            try (MongoDBConnection mongoDBConnection = new MongoDBConnection()) {
+                MongoCollection<Document> usersCollection = mongoDBConnection.getDatabase().getCollection("users");
+                Document query = new Document("email", email);
+                Document update = new Document("$set", new Document("password", newPassword));
+                long modifiedCount = usersCollection.updateOne(query, update).getModifiedCount();
+
+                if (modifiedCount > 0) {
+                    // Gửi email với mật khẩu mới
+                    sendEmail(
+                            email,
+                            "Password Reset Confirmation",
+                            "Your password has been reset. Your new password is: " + newPassword
+                    );
+
+                    // Hiển thị thông báo thành công
+                    Alert alert = new Alert(Alert.AlertType.INFORMATION);
+                    alert.setTitle("Password Reset Successful");
+                    alert.setHeaderText(null);
+                    alert.setContentText("Your password has been reset. Check your email for the new password.");
+                    alert.showAndWait();
+                } else {
+                    Alert alert = new Alert(Alert.AlertType.ERROR);
+                    alert.setTitle("Password Reset Failed");
+                    alert.setHeaderText(null);
+                    alert.setContentText("No account found with the given email.");
+                    alert.showAndWait();
+                }
+            }
+        }
+    }
+
+
 
     public static void main(String[] args) {
         launch(args);
