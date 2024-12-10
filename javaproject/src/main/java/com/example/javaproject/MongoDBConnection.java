@@ -1,5 +1,7 @@
 package com.example.javaproject;
 import java.time.LocalDate;
+
+import com.mongodb.ConnectionString;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoCollection;
@@ -25,7 +27,7 @@ import java.util.Date;
 
 
 
-public class MongoDBConnection {
+public class MongoDBConnection implements AutoCloseable {
 
     private static final String DATABASE_URI = "mongodb://localhost:27017";  // Địa chỉ MongoDB
     private static final String DATABASE_NAME = "AppChat";  // Tên cơ sở dữ liệu
@@ -33,11 +35,47 @@ public class MongoDBConnection {
     private MongoClient mongoClient;
     private MongoDatabase database;
 
-    public MongoDBConnection() {
+    public MongoDBConnection()  {
         // Kết nối đến MongoDB bằng MongoClients
         this.mongoClient = MongoClients.create(DATABASE_URI);
         this.database = mongoClient.getDatabase(DATABASE_NAME);
     }
+
+    public MongoDatabase getDatabase() {
+        return this.database;
+    }
+
+
+
+    public boolean loginUser(String email, String password) {
+        MongoCollection<Document> usersCollection = database.getCollection("users");
+        Document query = new Document("email", email).append("password", password);
+        Document user = usersCollection.find(query).first();
+        return user != null; // Trả về true nếu tìm thấy người dùng
+    }
+
+    public boolean registerUser(String username, String email, String password) {
+        MongoCollection<Document> usersCollection = database.getCollection("users");
+
+        // Kiểm tra nếu email hoặc username đã tồn tại
+        Document emailQuery = new Document("email", email);
+        Document usernameQuery = new Document("username", username);
+
+        if (usersCollection.find(emailQuery).first() != null || usersCollection.find(usernameQuery).first() != null) {
+            return false; // Email hoặc username đã tồn tại
+        }
+
+        // Tạo người dùng mới
+        Document newUser = new Document("username", username)
+                .append("email", email)
+                .append("password", password)
+                .append("created_at", new java.util.Date());
+
+        usersCollection.insertOne(newUser);
+        return true; // Đăng ký thành công
+    }
+
+
 
 
     // ------------------ Quản lý Nhóm Chat ------------------
@@ -752,9 +790,11 @@ public class MongoDBConnection {
 
 
 
+    @Override
     public void close() {
-        // Đóng kết nối MongoDB
-        mongoClient.close();
+        if (mongoClient != null) {
+            mongoClient.close();
+        }
     }
 
     public static void main(String[] args) {
@@ -776,5 +816,7 @@ public class MongoDBConnection {
         // Đóng kết nối MongoDB
         mongoDBConnection.close();
     }
+
+
 }
 
