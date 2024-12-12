@@ -1,6 +1,7 @@
 package com.example.javaproject;
 
 import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
@@ -15,6 +16,10 @@ import javafx.scene.text.Font;
 import javafx.stage.Stage;
 import org.kordamp.ikonli.javafx.FontIcon;
 import org.kordamp.ikonli.fontawesome5.FontAwesomeSolid;
+import java.io.*;
+import java.net.*;
+
+
 
 public class ChatAppInterface extends Application {
     private ObservableList<HBox> peopleData;
@@ -154,11 +159,13 @@ public class ChatAppInterface extends Application {
         homeIcon.setOnMouseClicked(event -> {
             // Ẩn phần Friends/Groups
             groupsPeopleBox.setVisible(false);
-            groupsPeopleBox.setManaged(false); // Đảm bảo không chiếm không gian giao diện
-            // Hiển thị phần Account Update ở trung tâm
+            groupsPeopleBox.setManaged(false);
+
             VBox accountUpdateLayout = AccountUpdateScreen.getAccountUpdateLayout();
             root.setCenter(accountUpdateLayout);
         });
+
+
 
         // -----------------------------
         //           Chat Section
@@ -406,6 +413,36 @@ public class ChatAppInterface extends Application {
         chatList.getChildren().add(bubbleContainer);
     }
 
+
+    public class ChatClient {
+        private Socket socket;
+        private PrintWriter writer;
+
+        public void connectToServer(String host, int port) throws IOException {
+            socket = new Socket(host, port);
+            writer = new PrintWriter(socket.getOutputStream(), true);
+            new Thread(() -> listenForMessages()).start();
+        }
+
+        public void sendMessage(String message) {
+            if (writer != null) {
+                writer.println(message);
+            }
+        }
+
+        private void listenForMessages() {
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
+                String message;
+                while ((message = reader.readLine()) != null) {
+                    String finalMessage = message;
+                    Platform.runLater(() -> addChatBubble(chatList, finalMessage, false));
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
     /**
      * Báo cáo spam cho liên hệ hiện tại.
      */
@@ -451,6 +488,7 @@ public class ChatAppInterface extends Application {
         alert.setContentText(message);
         alert.showAndWait();
     }
+
 
     public static void main(String[] args) {
         launch(args);
