@@ -311,7 +311,7 @@ public class AdminPanelInterface extends Application {
         userManagementBox.getChildren().addAll(userManagementLabel, userFilterBox, userTable, userActionsBox);
 
         return userManagementBox;
-    }
+  }
 
     private VBox createLoginHistoryContent() {
         MongoDBConnection mongoDBConnection = new MongoDBConnection();
@@ -1374,6 +1374,7 @@ public class AdminPanelInterface extends Application {
                 new ObjectId(),
                 username,
                 "defaultPassword",
+                "",
                 fullName,
                 address,
                 birthDate,
@@ -1505,6 +1506,7 @@ public class AdminPanelInterface extends Application {
                 new ObjectId(),  // Cập nhật với ObjectId của người dùng cũ
                 username,
                 "defaultPassword", // Bạn có thể giữ mật khẩu cũ hoặc cho phép thay đổi mật khẩu
+                "",
                 fullName,
                 address,
                 birthDate,

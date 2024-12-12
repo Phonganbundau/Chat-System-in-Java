@@ -45,14 +45,13 @@ public class MongoDBConnection implements AutoCloseable {
         return this.database;
     }
 
-
-
-    public boolean loginUser(String email, String password) {
+    public Document authenticateUser(String email, String password) {
         MongoCollection<Document> usersCollection = database.getCollection("users");
         Document query = new Document("email", email).append("password", password);
-        Document user = usersCollection.find(query).first();
-        return user != null; // Trả về true nếu tìm thấy người dùng
+        return usersCollection.find(query).first();
     }
+
+
 
     public boolean registerUser(String username, String email, String password) {
         MongoCollection<Document> usersCollection = database.getCollection("users");
@@ -229,6 +228,7 @@ public class MongoDBConnection implements AutoCloseable {
                     _id,  // Lưu _id dưới dạng ObjectId
                     doc.getString("username"),
                     doc.getString("password"),
+                    doc.getString("avatar_url"),
                     doc.getString("full_name"),
                     doc.getString("address"),
                     doc.getString("birth_date"),
@@ -261,6 +261,7 @@ public class MongoDBConnection implements AutoCloseable {
                         doc.getObjectId("_id"),
                         doc.getString("username"),
                         doc.getString("password"),
+                        doc.getString("avatar_url"),
                         doc.getString("full_name"),
                         doc.getString("address"),
                         doc.getString("birth_date"),
@@ -403,6 +404,7 @@ public class MongoDBConnection implements AutoCloseable {
                                 friendId, // ObjectId của bạn bè
                                 friendDoc.getString("username"),
                                 "defaultPassword", // Thay thế mật khẩu mã hóa nếu cần
+                                friendDoc.getString("avatar_url"),
                                 friendDoc.getString("full_name"),
                                 friendDoc.getString("address"),
                                 friendDoc.getString("birth_date"),
@@ -491,6 +493,7 @@ public class MongoDBConnection implements AutoCloseable {
                     _id,  // Lưu _id dưới dạng ObjectId
                     doc.getString("username"),
                     doc.getString("password"),
+                    doc.getString("avatar_url"),
                     doc.getString("full_name"),
                     doc.getString("address"),
                     doc.getString("birth_date"),
@@ -533,6 +536,7 @@ public class MongoDBConnection implements AutoCloseable {
                     _id,  // Lưu _id dưới dạng ObjectId
                     doc.getString("username"),
                     doc.getString("password"),
+                    doc.getString("avatar_url"),
                     doc.getString("full_name"),
                     doc.getString("address"),
                     doc.getString("birth_date"),
@@ -564,6 +568,7 @@ public class MongoDBConnection implements AutoCloseable {
                     doc.getObjectId("_id"),
                     doc.getString("username"),
                     doc.getString("password"),
+                    doc.getString("avatar_url"),
                     doc.getString("full_name"),
                     doc.getString("address"),
                     doc.getString("birth_date"),
@@ -764,6 +769,29 @@ public class MongoDBConnection implements AutoCloseable {
 
         return monthlyCounts;
     }
+
+    public void updateUserAvatar(ObjectId userId, String avatarUrl) {
+        try {
+            MongoCollection<Document> userCollection = database.getCollection("users");
+
+            // Tạo bộ lọc để tìm người dùng cần cập nhật (dựa trên userId)
+            Document filter = new Document("_id", userId);
+
+            // Cập nhật trường avatarUrl trong document của người dùng
+            Document updateFields = new Document()
+                    .append("avatar_url", avatarUrl)
+                    .append("updated_at", new Date());  // Lưu ngày giờ hiện tại khi cập nhật
+
+            // Thực hiện cập nhật avatar mới
+            userCollection.updateOne(filter, new Document("$set", updateFields));
+
+            System.out.println("Cập nhật avatar thành công!");
+        } catch (Exception e) {
+            e.printStackTrace();
+            System.out.println("Lỗi khi cập nhật avatar: " + e.getMessage());
+        }
+    }
+
 
     /**
      * Lấy thời điểm bắt đầu của năm.

@@ -96,16 +96,18 @@ public class HomePageInterface extends Application {
             String password = passwordField.getText();
 
             try (MongoDBConnection mongoDBConnection = new MongoDBConnection()) {
-                boolean isAuthenticated = mongoDBConnection.loginUser(email, password);
-                if (isAuthenticated) {
+                Document user = mongoDBConnection.authenticateUser(email, password);
+                if (user != null) {
+                    // Lưu thông tin người dùng vào UserSession
+                    UserSession session = UserSession.getInstance();
+                    session.setUserId(user.getObjectId("_id"));
+                    session.setUsername(user.getString("username"));
+                    session.setEmail(user.getString("email"));
+                    // Điều hướng đến giao diện ChatApp
                     ChatAppInterface chatAppInterface = new ChatAppInterface();
                     Stage chatStage = new Stage();
-                    try {
-                        chatAppInterface.start(chatStage);
-                        primaryStage.close();
-                    } catch (Exception ex) {
-                        ex.printStackTrace();
-                    }
+                    chatAppInterface.start(chatStage);
+                    primaryStage.close();
                 } else {
                     Alert alert = new Alert(Alert.AlertType.ERROR);
                     alert.setTitle("Login Failed");

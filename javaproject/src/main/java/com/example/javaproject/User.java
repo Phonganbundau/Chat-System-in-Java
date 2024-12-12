@@ -10,6 +10,7 @@ public class User {
     private ObjectId _id;         // Định dạng ObjectId cho trường _id
     private String username;
     private String password;      // Để lưu mật khẩu đã băm
+    private String avatarUrl;
     private String fullName;
     private String address;
     private String birthDate;
@@ -22,7 +23,7 @@ public class User {
     private Date updatedAt;
 
     // Constructor
-    public User(ObjectId _id, String username, String password, String fullName, String address,
+    public User(ObjectId _id, String username, String password, String avatarUrl, String fullName, String address,
                 String birthDate, String gender, String email, String status,
                 List<ObjectId> friends, List<ObjectId> blockedUsers, Date createdAt, Date updatedAt) {
         this._id = _id;
@@ -30,6 +31,7 @@ public class User {
         this.password = password;
         this.fullName = fullName;
         this.address = address;
+        this.avatarUrl = avatarUrl;
         this.birthDate = birthDate;
         this.gender = gender;
         this.email = email;
@@ -172,6 +174,7 @@ public class User {
                 ", username='" + username + '\'' +
                 ", fullName='" + fullName + '\'' +
                 ", email='" + email + '\'' +
+                ", avatar url='" + avatarUrl + '\'' +
                 ", address='" + address + '\'' +
                 ", birthDate='" + birthDate + '\'' +
                 ", gender='" + gender + '\'' +
@@ -181,5 +184,9 @@ public class User {
                 ", createdAt=" + createdAt +
                 ", updatedAt=" + updatedAt +
                 '}';
+    }
+
+    public String getAvatarUrl() {
+        return avatarUrl;
     }
 }

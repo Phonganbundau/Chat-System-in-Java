@@ -9,92 +9,168 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.VBox;
 import javafx.scene.layout.HBox;
-import javafx.scene.layout.Priority;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.layout.*;
+import org.bson.types.ObjectId;
 
-
+import java.io.File;
+import java.util.Date;
+import javafx.stage.FileChooser;
 
 
 public class AccountUpdateScreen {
 
-    public static VBox getAccountUpdateLayout() {
-        // Main container
-        VBox mainLayout = new VBox(20);
-        mainLayout.setPadding(new Insets(20));
-        mainLayout.setAlignment(Pos.TOP_CENTER);
-        mainLayout.getStyleClass().add("main-profile-layout");
 
-        // Header Section
-        BorderPane header = new BorderPane();
-        header.setPrefHeight(200);
-        header.getStyleClass().add("header-background");
+        public static VBox getAccountUpdateLayout() {
+            // Main container
+            VBox mainLayout = new VBox(20);
+            mainLayout.setPadding(new Insets(20));
+            mainLayout.setAlignment(Pos.TOP_CENTER);
+            mainLayout.getStyleClass().add("main-profile-layout");
+            UserSession userSession = UserSession.getInstance();
+            ObjectId userId = userSession.getUserId();
 
-        // Avatar and Info in the Center
-        VBox centerBox = new VBox(10);
-        centerBox.setAlignment(Pos.CENTER);
+            Button changeAvatarButton = new Button("Change Avatar");
+            changeAvatarButton.getStyleClass().add("edit-profile-button");
+            changeAvatarButton.setOnAction(e -> {
+                changeAvatar(userId, mainLayout);
+            });
 
-        ImageView avatar = new ImageView(new Image(AccountUpdateScreen.class.getResourceAsStream("/com/example/javaproject/avatar.png")));
-        avatar.setFitHeight(100);
-        avatar.setFitWidth(100);
-        avatar.getStyleClass().add("user-avatar");
+            try (MongoDBConnection mongoDBConnection = new MongoDBConnection()) {
+                User user = mongoDBConnection.getUserById(userId);
 
-        Label nameLabel = new Label("John Doe");
-        nameLabel.getStyleClass().add("user-name");
+                // Thông tin người dùng
+                String username = user.getUsername();
+                String email = user.getEmail();
+                String gender = user.getGender();
+                String address = user.getAddress();
+                String birthDate = user.getBirthDate();
+                String status = user.getStatus();
+                String avatarUrl = user.getAvatarUrl();
 
-        Label statusLabel = new Label("\"I wish I could be 17 Again.\"");
-        statusLabel.getStyleClass().add("user-status");
 
-        Label onlineStatusLabel = new Label("Online");
-        onlineStatusLabel.getStyleClass().add("user-online-status");
+                // Header Section
+                BorderPane header = new BorderPane();
+                header.setPrefHeight(200);
+                header.getStyleClass().add("header-background");
 
-        centerBox.getChildren().addAll(avatar, nameLabel, statusLabel, onlineStatusLabel);
-        header.setCenter(centerBox);
+                // Avatar and Info in the Center
+                VBox centerBox = new VBox(10);
+                centerBox.setAlignment(Pos.CENTER);
 
-        // Buttons on the Top-Right
-        HBox buttonBox = new HBox(10);
-        buttonBox.setAlignment(Pos.TOP_RIGHT);
-        buttonBox.setPadding(new Insets(10));
+                // Kiểm tra xem avatarUrl có tồn tại hay không, nếu không sử dụng avatar mặc định
+                Image avatarImage;
 
-        Button editProfileButton = new Button("Edit Profile");
-        editProfileButton.getStyleClass().add("edit-profile-button");
-        editProfileButton.setOnAction(e -> {
-            VBox personalInfoForm = getPersonalInfoForm();
-            switchToForm(mainLayout, personalInfoForm);
-        });
 
-        Button changePasswordButton = new Button("Change Password");
-        changePasswordButton.getStyleClass().add("change-password-button");
-        changePasswordButton.setOnAction(e -> {
-            VBox changePasswordForm = getChangePasswordForm();
-            switchToForm(mainLayout, changePasswordForm);
-        });
+                        avatarImage = new Image(avatarUrl); // Load từ URL
 
-        buttonBox.getChildren().addAll(editProfileButton, changePasswordButton);
-        header.setTop(buttonBox);
 
-        // Information Section
-        VBox infoSection = new VBox(15);
-        infoSection.setAlignment(Pos.TOP_LEFT);
-        infoSection.setPadding(new Insets(20));
-        infoSection.getStyleClass().add("info-section");
 
-        // Add Information Fields
-        infoSection.getChildren().addAll(
-                createInfoField("Mobile:", "+91 9876 453 210"),
-                createInfoField("Email:", "johndoe@example.com"),
-                createInfoField("Gender:", "Male"),
-                createInfoField("Location:", "New York, USA"),
-                createInfoField("Birthdate:", "7th December, 1994")
-        );
+                ImageView avatar = new ImageView(avatarImage);
+                avatar.setFitHeight(100);
+                avatar.setFitWidth(100);
+                avatar.getStyleClass().add("user-avatar");
 
-        // Add sections to main layout
-        mainLayout.getChildren().addAll(header, infoSection);
-        mainLayout.getStylesheets().add(AccountUpdateScreen.class.getResource("/com/example/javaproject/styles_account_update.css").toExternalForm());
+                Label nameLabel = new Label(username);
+                nameLabel.getStyleClass().add("user-name");
 
-        return mainLayout;
+                Label statusLabel = new Label(status);
+                statusLabel.getStyleClass().add("user-status");
+
+                Label onlineStatusLabel = new Label("Online");
+                onlineStatusLabel.getStyleClass().add("user-online-status");
+
+                centerBox.getChildren().addAll(avatar, nameLabel, statusLabel, onlineStatusLabel);
+                header.setCenter(centerBox);
+
+                // Buttons on the Top-Right
+                HBox buttonBox = new HBox(10);
+                buttonBox.setAlignment(Pos.TOP_RIGHT);
+                buttonBox.setPadding(new Insets(10));
+
+                Button editProfileButton = new Button("Edit Profile");
+                editProfileButton.getStyleClass().add("edit-profile-button");
+                editProfileButton.setOnAction(e -> {
+                    VBox personalInfoForm = getPersonalInfoForm();
+                    switchToForm(mainLayout, personalInfoForm);
+                });
+
+                Button changePasswordButton = new Button("Change Password");
+                changePasswordButton.getStyleClass().add("change-password-button");
+                changePasswordButton.setOnAction(e -> {
+                    VBox changePasswordForm = getChangePasswordForm();
+                    switchToForm(mainLayout, changePasswordForm);
+                });
+
+                buttonBox.getChildren().addAll(changeAvatarButton, editProfileButton, changePasswordButton);
+                header.setTop(buttonBox);
+
+
+                // Add Information Fields
+                VBox infoSection = new VBox(15);
+                infoSection.setAlignment(Pos.TOP_LEFT);
+                infoSection.setPadding(new Insets(20));
+                infoSection.getStyleClass().add("info-section");
+
+                infoSection.getChildren().addAll(
+                        createInfoField("Mobile:", "+91 9876 453 210"),  // Có thể thay bằng thông tin thực từ user
+                        createInfoField("Email:", email),
+                        createInfoField("Gender:", gender),
+                        createInfoField("Location:", address),
+                        createInfoField("Birthdate:", birthDate)
+                );
+
+                mainLayout.getChildren().addAll(header, infoSection);
+                mainLayout.getStylesheets().add(AccountUpdateScreen.class.getResource("/com/example/javaproject/styles_account_update.css").toExternalForm());
+                return mainLayout;
+
+            } catch (Exception e) {
+                e.printStackTrace();
+                showAlert(Alert.AlertType.ERROR, "Error", "Unable to fetch user data.");
+                return new VBox();  // Trả về layout trống nếu có lỗi
+            }
+        }
+
+
+    public static void changeAvatar(ObjectId userId, VBox mainLayout) {
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Image Files", "*.png", "*.jpg", "*.jpeg"));
+        File selectedFile = fileChooser.showOpenDialog(null);
+
+        if (selectedFile != null) {
+            String newAvatarUrl = selectedFile.toURI().toString();
+
+            // Cập nhật avatar trong MongoDB
+            try (MongoDBConnection mongoDBConnection = new MongoDBConnection()) {
+                mongoDBConnection.updateUserAvatar(userId, newAvatarUrl);
+
+                // Sau khi cập nhật thành công, gọi lại phương thức để reload giao diện
+                VBox updatedLayout = getAccountUpdateLayout();
+
+                switchToForm(mainLayout, updatedLayout); // Cập nhật giao diện chính
+            } catch (Exception e) {
+                e.printStackTrace();
+                showAlert(Alert.AlertType.ERROR, "Error", "Unable to update avatar.");
+            }
+        }
     }
+
+
+
+    // Cập nhật avatar trong UI
+        public static void updateAvatarInUI(String newAvatarUrl) {
+            // Giả sử bạn có một đối tượng avatar đã được tạo từ trước
+            ImageView avatarImageView = new ImageView(new Image(newAvatarUrl));
+            avatarImageView.setFitHeight(100);
+            avatarImageView.setFitWidth(100);
+            avatarImageView.getStyleClass().add("user-avatar");
+
+
+        }
+
+
+
 
     /**
      * Chuyển đổi giao diện từ layout hiện tại sang layout mới.
@@ -133,7 +209,7 @@ public class AccountUpdateScreen {
      *
      * @return VBox chứa form.
      */
-    private static VBox getPersonalInfoForm() {
+    /*private static VBox getPersonalInfoForm() {
         VBox formLayout = new VBox(15);
         formLayout.setPadding(new Insets(20));
         formLayout.setAlignment(Pos.TOP_LEFT);
@@ -175,7 +251,83 @@ public class AccountUpdateScreen {
 
         formLayout.getChildren().addAll(title, fullNameLabel, fullNameField, emailLabel, emailField, addressLabel, addressField, dobLabel, dobField, saveButton);
         return formLayout;
+    }*/
+
+    private static VBox getPersonalInfoForm() {
+        VBox formLayout = new VBox(15);
+        formLayout.setPadding(new Insets(20));
+        formLayout.setAlignment(Pos.TOP_LEFT);
+        formLayout.getStyleClass().add("form-layout");
+
+        // Tiêu đề form
+        Label title = new Label("Edit Personal Information");
+        title.getStyleClass().add("form-title");
+
+        // Lấy thông tin người dùng từ session (hoặc session người dùng đã đăng nhập)
+        UserSession userSession = UserSession.getInstance();
+        ObjectId userId = userSession.getUserId();  // ID của người dùng từ session
+
+        User user = null;
+        try (MongoDBConnection mongoDBConnection = new MongoDBConnection()) {
+            user = mongoDBConnection.getUserById(userId);  // Lấy thông tin người dùng từ MongoDB
+        } catch (Exception e) {
+            e.printStackTrace();
+            showAlert(Alert.AlertType.ERROR, "Error", "Unable to fetch user data.");
+            return formLayout;  // Trả về form trống nếu có lỗi
+        }
+
+        // Các trường thông tin
+        Label fullNameLabel = new Label("Full Name:");
+        fullNameLabel.getStyleClass().add("form-label");
+        TextField fullNameField = new TextField(user.getFullName());
+        fullNameField.setPromptText("Enter your full name");
+        fullNameField.getStyleClass().add("form-field");
+
+        Label emailLabel = new Label("Email:");
+        emailLabel.getStyleClass().add("form-label");
+        TextField emailField = new TextField(user.getEmail());
+        emailField.setPromptText("Enter your email");
+        emailField.getStyleClass().add("form-field");
+
+        Label addressLabel = new Label("Address:");
+        addressLabel.getStyleClass().add("form-label");
+        TextField addressField = new TextField(user.getAddress());
+        addressField.setPromptText("Enter your address");
+        addressField.getStyleClass().add("form-field");
+
+        Label dobLabel = new Label("Date of Birth:");
+        dobLabel.getStyleClass().add("form-label");
+        TextField dobField = new TextField(user.getBirthDate());
+        dobField.setPromptText("Enter your date of birth (e.g., 7th December, 1994)");
+        dobField.getStyleClass().add("form-field");
+
+        // Button để lưu thay đổi
+        Button saveButton = new Button("Save Changes");
+        saveButton.getStyleClass().add("save-button");
+        User finalUser = user;
+        saveButton.setOnAction(e -> {
+            String updatedFullName = fullNameField.getText();
+            String updatedEmail = emailField.getText();
+            String updatedAddress = addressField.getText();
+            String updatedDob = dobField.getText();
+
+            // Tạo đối tượng User mới với thông tin đã cập nhật
+            User updatedUser = new User(finalUser.getId(), finalUser.getUsername(), finalUser.getPassword(), finalUser.getAvatarUrl(), updatedFullName, updatedAddress, updatedDob, "", updatedEmail, "", null, null, new Date(), new Date());
+
+            try (MongoDBConnection mongoDBConnection = new MongoDBConnection()) {
+                mongoDBConnection.updateUser(updatedUser);  // Cập nhật thông tin vào MongoDB
+                showAlert(Alert.AlertType.INFORMATION, "Saved", "Your information has been updated.");
+            } catch (Exception ex) {
+                ex.printStackTrace();
+                showAlert(Alert.AlertType.ERROR, "Error", "Unable to save changes.");
+            }
+        });
+
+        formLayout.getChildren().addAll(title, fullNameLabel, fullNameField, emailLabel, emailField, addressLabel, addressField, dobLabel, dobField, saveButton);
+
+        return formLayout;
     }
+
 
     /**
      * Tạo form thay đổi mật khẩu.
