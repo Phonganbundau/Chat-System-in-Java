@@ -1,4 +1,4 @@
-package com.example.javaproject;
+/*package com.example.javaproject;
 
 import javax.mail.*;
 import javax.mail.internet.*;
@@ -34,4 +34,4 @@ public class EmailService_HomePage {
             e.printStackTrace();
         }
     }
-}
+}*/
