@@ -1,4 +1,4 @@
-package com.example.trichat;
+package com.example.javaproject;
 
 import javafx.application.Platform;
 import java.io.*;

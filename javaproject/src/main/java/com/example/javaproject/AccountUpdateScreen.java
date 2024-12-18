@@ -1,4 +1,4 @@
-package com.example.trichat;
+package com.example.javaproject;
 
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
@@ -122,7 +122,7 @@ public class AccountUpdateScreen {
             );
 
             mainLayout.getChildren().addAll(header, infoSection);
-            mainLayout.getStylesheets().add(AccountUpdateScreen.class.getResource("/com/example/trichat/styles_account_update.css").toExternalForm());
+            mainLayout.getStylesheets().add(AccountUpdateScreen.class.getResource("/com/example/javaproject/styles_account_update.css").toExternalForm());
             return mainLayout;
 
         } catch (Exception e) {

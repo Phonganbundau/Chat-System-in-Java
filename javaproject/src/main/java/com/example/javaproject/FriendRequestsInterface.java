@@ -1,4 +1,4 @@
-package com.example.trichat;
+package com.example.javaproject;
 
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -37,9 +37,9 @@ public class FriendRequestsInterface {
 
         // Friend Requests List
         friendRequestsData = FXCollections.observableArrayList(
-                createFriendRequestItem("/com/example/trichat/avatar.png", "John Doe"),
-                createFriendRequestItem("/com/example/trichat/avatar.png", "Jane Smith"),
-                createFriendRequestItem("/com/example/trichat/avatar.png", "Robert Brown")
+                createFriendRequestItem("/com/example/javaproject/avatar.png", "John Doe"),
+                createFriendRequestItem("/com/example/javaproject/avatar.png", "Jane Smith"),
+                createFriendRequestItem("/com/example/javaproject/avatar.png", "Robert Brown")
         );
 
         friendRequestsList = new ListView<>(friendRequestsData);
@@ -56,7 +56,7 @@ public class FriendRequestsInterface {
 
         // Setting up the scene and stage
         Scene scene = new Scene(root, 600, 500);
-        scene.getStylesheets().add(getClass().getResource("/com/example/trichat/style_for_request.css").toExternalForm());
+        scene.getStylesheets().add(getClass().getResource("/com/example/javaproject/style_for_request.css").toExternalForm());
         primaryStage.setTitle("Friend Requests");
         primaryStage.setScene(scene);
         primaryStage.show();

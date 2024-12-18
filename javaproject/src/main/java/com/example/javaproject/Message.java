@@ -1,4 +1,4 @@
-package com.example.trichat;
+package com.example.javaproject;
 
 public class Message {
     private String sender;

@@ -1,4 +1,4 @@
-package com.example.trichat;
+package com.example.javaproject;
 
 import javafx.application.Application;
 import javafx.collections.FXCollections;
@@ -82,9 +82,9 @@ public class ChatAppInterface extends Application {
 
         ListView<HBox> groupsList = new ListView<>();
         groupsList.getItems().addAll(
-                this.createListItem("/com/example/trichat/avatar.png", "Friends Forever", "Hahahaha!", "Today, 9:52pm"),
-                this.createListItem("/com/example/trichat/avatar.png", "Mera Gang", "Kyu??", "Yesterday, 12:31pm"),
-                this.createListItem("/com/example/trichat/avatar.png", "Hiking", "It's not going to happen", "Wednesday, 9:12am")
+                this.createListItem("/com/example/javaproject/avatar.png", "Friends Forever", "Hahahaha!", "Today, 9:52pm"),
+                this.createListItem("/com/example/javaproject/avatar.png", "Mera Gang", "Kyu??", "Yesterday, 12:31pm"),
+                this.createListItem("/com/example/javaproject/avatar.png", "Hiking", "It's not going to happen", "Wednesday, 9:12am")
         );
         groupsList.getStyleClass().add("list-view");
 
@@ -105,10 +105,10 @@ public class ChatAppInterface extends Application {
         peopleSearchBox.setAlignment(Pos.CENTER_LEFT);
 
         this.peopleData = FXCollections.observableArrayList(
-                this.createPersonItem("/com/example/trichat/avatar.png", "Anil", "Online"),
-                this.createPersonItem("/com/example/trichat/avatar.png", "Mary", "Offline"),
-                this.createPersonItem("/com/example/trichat/avatar.png", "Bill Gates", "Offline"),
-                this.createPersonItem("/com/example/trichat/avatar.png", "Victoria", "Online")
+                this.createPersonItem("/com/example/javaproject/avatar.png", "Anil", "Online"),
+                this.createPersonItem("/com/example/javaproject/avatar.png", "Mary", "Offline"),
+                this.createPersonItem("/com/example/javaproject/avatar.png", "Bill Gates", "Offline"),
+                this.createPersonItem("/com/example/javaproject/avatar.png", "Victoria", "Online")
         );
         this.peopleList = new ListView<>(this.peopleData);
         this.peopleList.getStyleClass().add("list-view");
@@ -136,7 +136,7 @@ public class ChatAppInterface extends Application {
         chatHeader.setAlignment(Pos.CENTER_LEFT);
         chatHeader.getStyleClass().add("chat-header");
 
-        ImageView avatarView = new ImageView(new Image(this.getClass().getResourceAsStream("/com/example/trichat/avatar.png")));
+        ImageView avatarView = new ImageView(new Image(this.getClass().getResourceAsStream("/com/example/javaproject/avatar.png")));
         avatarView.setFitHeight(40.0);
         avatarView.setFitWidth(40.0);
 
@@ -214,7 +214,7 @@ public class ChatAppInterface extends Application {
         root.setCenter(chatBox);
 
         Scene scene = new Scene(root, 1000.0, 700.0);
-        scene.getStylesheets().add(this.getClass().getResource("/com/example/trichat/styles.css").toExternalForm());
+        scene.getStylesheets().add(this.getClass().getResource("/com/example/javaproject/styles.css").toExternalForm());
         primaryStage.setTitle("Chat Application UI");
         primaryStage.setScene(scene);
         primaryStage.show();

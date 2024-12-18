@@ -1,4 +1,4 @@
-package com.example.trichat;
+package com.example.javaproject;
 
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -34,9 +34,9 @@ public class SearchScreen {
 
         // Search Results List
         searchResultsData = FXCollections.observableArrayList(
-                createSearchResultItem("/com/example/trichat/avatar.png", "John Doe", "john_d"),
-                createSearchResultItem("/com/example/trichat/avatar.png", "Jane Smith", "jane_smith"),
-                createSearchResultItem("/com/example/trichat/avatar.png", "Robert Brown", "robert_b")
+                createSearchResultItem("/com/example/javaproject/avatar.png", "John Doe", "john_d"),
+                createSearchResultItem("/com/example/javaproject/avatar.png", "Jane Smith", "jane_smith"),
+                createSearchResultItem("/com/example/javaproject/avatar.png", "Robert Brown", "robert_b")
         );
 
         searchResultsList = new ListView<>(searchResultsData);
@@ -52,7 +52,7 @@ public class SearchScreen {
 
         // Setting up the scene and stage
         Scene scene = new Scene(root, 600, 500);
-        scene.getStylesheets().add(getClass().getResource("/com/example/trichat/style_for_search.css").toExternalForm());
+        scene.getStylesheets().add(getClass().getResource("/com/example/javaproject/style_for_search.css").toExternalForm());
         primaryStage.setTitle("Search People");
         primaryStage.setScene(scene);
         primaryStage.show();

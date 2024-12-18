@@ -1,4 +1,4 @@
-package com.example.trichat;
+package com.example.javaproject;
 
 import java.time.LocalDate;
 

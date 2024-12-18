@@ -1,4 +1,4 @@
-package com.example.trichat;
+package com.example.javaproject;
 
 import javafx.application.Application;
 import javafx.collections.FXCollections;
@@ -102,7 +102,7 @@ public class AdminPanelInterface extends Application {
 
         // Thiết lập cảnh và stage
         Scene scene = new Scene(root, 1300, 800);
-        scene.getStylesheets().add(getClass().getResource("/com/example/trichat/adminstyle.css").toExternalForm());
+        scene.getStylesheets().add(getClass().getResource("/com/example/javaproject/adminstyle.css").toExternalForm());
         primaryStage.setTitle("Admin Panel");
         primaryStage.setScene(scene);
         primaryStage.show();

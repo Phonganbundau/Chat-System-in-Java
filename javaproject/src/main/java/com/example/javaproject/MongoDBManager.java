@@ -1,4 +1,4 @@
-package com.example.trichat;
+package com.example.javaproject;
 
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;

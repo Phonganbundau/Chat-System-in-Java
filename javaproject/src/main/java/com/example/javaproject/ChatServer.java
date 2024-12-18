@@ -1,6 +1,6 @@
-package com.example.trichat;
+package com.example.javaproject;
 
-import com.example.trichat.ChatGroup;
+import com.example.javaproject.ChatGroup;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoCollection;

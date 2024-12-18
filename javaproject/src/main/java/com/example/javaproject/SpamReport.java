@@ -1,4 +1,4 @@
-package com.example.trichat;
+package com.example.javaproject;
 
 import org.bson.types.ObjectId;
 import java.util.Date;
