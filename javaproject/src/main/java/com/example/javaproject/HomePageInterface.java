@@ -22,6 +22,8 @@ import javax.mail.internet.*;
 
 
 public class HomePageInterface extends Application {
+    
+
 
     @Override
     public void start(Stage primaryStage) {
@@ -203,6 +205,8 @@ public class HomePageInterface extends Application {
         scene.getStylesheets().add(getClass().getResource("/com/example/javaproject/style_for_homepage.css").toExternalForm());
         primaryStage.setScene(scene);
         primaryStage.show();
+
+
     }
 
 

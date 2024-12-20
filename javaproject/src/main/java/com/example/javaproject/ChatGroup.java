@@ -93,4 +93,8 @@ public class ChatGroup {
                 ", updatedAt=" + updatedAt +
                 '}';
     }
+
+    public String getGroupAvatarUrl() {
+        return groupName;
+    }
 }

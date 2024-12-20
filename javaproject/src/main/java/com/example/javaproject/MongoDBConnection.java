@@ -8,6 +8,8 @@ import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoCollection;
+import com.mongodb.client.model.Sorts;
+import com.mongodb.client.model.Updates;
 import org.bson.conversions.Bson;
 import org.bson.Document;
 import org.bson.types.ObjectId;
@@ -78,6 +80,39 @@ public class MongoDBConnection implements AutoCloseable {
 
 
     // ------------------ Quản lý Nhóm Chat ------------------
+
+    public List<ChatGroup> getUserChatGroups(ObjectId userId) {
+        MongoCollection<Document> collection = database.getCollection("groups");
+        List<ChatGroup> userGroups = new ArrayList<>();
+
+        // Truy vấn tất cả các nhóm
+        for (Document doc : collection.find()) {
+            List<ObjectId> memberIds = (List<ObjectId>) doc.get("member_ids");
+            List<ObjectId> adminIds = (List<ObjectId>) doc.get("admin_ids");
+
+            // Kiểm tra xem userId có phải là thành viên hoặc admin của nhóm không
+            if (memberIds.contains(userId) || adminIds.contains(userId)) {
+                String groupName = doc.getString("name");
+                Date createdAt = doc.getDate("created_at");
+                Date updatedAt = doc.getDate("updated_at");
+                boolean isEncrypted = doc.getBoolean("is_encrypted", false);
+                ObjectId _id = doc.getObjectId("_id");
+
+                // Tạo đối tượng ChatGroup từ Document
+                ChatGroup group = new ChatGroup(groupName, createdAt);
+                group.set_id(_id);
+                group.setAdminIds(adminIds);
+                group.setMemberIds(memberIds);
+                group.setIsEncrypted(isEncrypted);
+                group.setUpdatedAt(updatedAt);
+
+                userGroups.add(group);
+            }
+        }
+
+        return userGroups;
+    }
+
 
     public List<ChatGroup> fetchChatGroups(String sortBy, String filterName) {
         MongoCollection<Document> collection = database.getCollection("groups");
@@ -319,6 +354,15 @@ public class MongoDBConnection implements AutoCloseable {
     }
 
 
+    public String getUsernameById(ObjectId userId) {
+        MongoCollection<Document> usersCollection = database.getCollection("users");
+        Document userDoc = usersCollection.find(Filters.eq("_id", userId)).first();
+
+        if (userDoc != null) {
+            return userDoc.getString("username");
+        }
+        return null;
+    }
 
 
 
@@ -382,6 +426,39 @@ public class MongoDBConnection implements AutoCloseable {
         MongoCollection<Document> collection = database.getCollection("users");
         collection.deleteOne(Filters.eq("_id", userId));  // Xóa người dùng theo _id
     }
+
+    public List<User> searchUsersByKeyword(String keyword) {
+        MongoCollection<Document> collection = database.getCollection("users");
+        List<User> users = new ArrayList<>();
+
+        // Sử dụng regex để tìm kiếm theo tên hoặc username
+        Bson filter = Filters.or(
+                Filters.regex("full_name", ".*" + keyword + ".*", "i"),
+                Filters.regex("username", ".*" + keyword + ".*", "i")
+        );
+
+        for (Document doc : collection.find(filter)) {
+            User user = new User(
+                    doc.getObjectId("_id"),
+                    doc.getString("username"),
+                    doc.getString("password"),
+                    doc.getString("avatar_url"),
+                    doc.getString("full_name"),
+                    doc.getString("address"),
+                    doc.getString("birth_date"),
+                    doc.getString("gender"),
+                    doc.getString("email"),
+                    doc.getString("status"),
+                    doc.getList("friends", ObjectId.class),
+                    doc.getList("blocked_users", ObjectId.class),
+                    doc.getDate("created_at"),
+                    doc.getDate("updated_at")
+            );
+            users.add(user);
+        }
+        return users;
+    }
+
 
     public List<User> getFriends(ObjectId userId) {
         List<User> friendsList = new ArrayList<>();
@@ -553,6 +630,112 @@ public class MongoDBConnection implements AutoCloseable {
         // Nếu không tìm thấy người dùng, trả về null
         return null;
     }
+
+    public List<User> getFriendRequests(ObjectId userId) {
+        MongoCollection<Document> friendRequestsCollection = database.getCollection("friend_requests");
+        List<User> friendRequests = new ArrayList<>();
+
+        for (Document doc : friendRequestsCollection.find(Filters.eq("receiver_id", userId))) {
+            ObjectId senderId = doc.getObjectId("sender_id");
+
+            // Fetch sender details from users collection
+            Document senderDoc = database.getCollection("users").find(Filters.eq("_id", senderId)).first();
+            if (senderDoc != null) {
+                User sender = new User(
+                        senderDoc.getObjectId("_id"),
+                        senderDoc.getString("username"),
+                        senderDoc.getString("password"),
+                        senderDoc.getString("avatar_url"),
+                        senderDoc.getString("full_name"),
+                        senderDoc.getString("address"),
+                        senderDoc.getString("birth_date"),
+                        senderDoc.getString("gender"),
+                        senderDoc.getString("email"),
+                        senderDoc.getString("status"),
+                        null, // Friends list not needed here
+                        null, // Blocked users not needed here
+                        senderDoc.getDate("created_at"),
+                        senderDoc.getDate("updated_at")
+                );
+                friendRequests.add(sender);
+            }
+        }
+        return friendRequests;
+    }
+
+    public void acceptFriendRequest(ObjectId receiverId, ObjectId senderId) {
+        // Add sender to receiver's friends list
+        database.getCollection("users").updateOne(
+                Filters.eq("_id", receiverId),
+                Updates.addToSet("friends", senderId)
+        );
+
+        // Add receiver to sender's friends list
+        database.getCollection("users").updateOne(
+                Filters.eq("_id", senderId),
+                Updates.addToSet("friends", receiverId)
+        );
+
+        // Remove the friend request
+        database.getCollection("friend_requests").deleteOne(
+                Filters.and(Filters.eq("sender_id", senderId), Filters.eq("receiver_id", receiverId))
+        );
+    }
+
+    public void rejectFriendRequest(ObjectId receiverId, ObjectId senderId) {
+        // Remove the friend request
+        database.getCollection("friend_requests").deleteOne(
+                Filters.and(Filters.eq("sender_id", senderId), Filters.eq("receiver_id", receiverId))
+        );
+    }
+
+    public void sendFriendRequest(ObjectId senderId, ObjectId receiverId) {
+        try {
+            MongoCollection<Document> friendRequestsCollection = database.getCollection("friend_requests");
+
+            // Kiểm tra nếu yêu cầu đã tồn tại
+            Document existingRequest = friendRequestsCollection.find(
+                    Filters.and(
+                            Filters.eq("sender_id", senderId),
+                            Filters.eq("receiver_id", receiverId)
+                    )
+            ).first();
+
+            if (existingRequest != null) {
+                throw new IllegalStateException("Friend request already sent.");
+            }
+
+            // Tạo một yêu cầu kết bạn mới
+            Document friendRequest = new Document()
+                    .append("sender_id", senderId)
+                    .append("receiver_id", receiverId)
+                    .append("status", "pending") // Trạng thái mặc định là pending
+                    .append("created_at", new java.util.Date());
+
+            // Thêm yêu cầu vào cơ sở dữ liệu
+            friendRequestsCollection.insertOne(friendRequest);
+            System.out.println("Friend request sent successfully!");
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new RuntimeException("Failed to send friend request: " + e.getMessage());
+        }
+    }
+
+    public boolean checkFriendStatus(ObjectId userId, ObjectId friendId) {
+        try {
+            MongoCollection<Document> usersCollection = database.getCollection("users");
+            Document user = usersCollection.find(Filters.eq("_id", userId)).first();
+            if (user != null) {
+                List<ObjectId> friends = user.getList("friends", ObjectId.class);
+                return friends != null && friends.contains(friendId); // Kiểm tra xem friendId có trong danh sách bạn bè không
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+
 
 
     public List<User> fetchNewUsers() {
@@ -815,6 +998,179 @@ public class MongoDBConnection implements AutoCloseable {
         return Date.from(startOfNextYear.atStartOfDay(ZoneId.systemDefault()).toInstant());
     }
 
+    // ------------------ Quản lý Tin nhắn (Messages) ------------------
+
+    // Lấy tất cả tin nhắn giữa hai người dùng (Chat cá nhân)
+    public List<ChatMessage> getMessagesBetweenUsers(ObjectId senderId, ObjectId receiverId) {
+        MongoCollection<Document> messagesCollection = database.getCollection("messages");
+        List<ChatMessage> messages = new ArrayList<>();
+
+        // Truy vấn tin nhắn giữa hai người dùng
+        FindIterable<Document> documents = messagesCollection.find(
+                Filters.or(
+                        Filters.and(Filters.eq("sender_id", senderId), Filters.eq("receiver_id", receiverId)),
+                        Filters.and(Filters.eq("sender_id", receiverId), Filters.eq("receiver_id", senderId))
+                )
+        ).sort(Sorts.ascending("created_at")); // Sắp xếp theo thời gian tăng dần
+
+        for (Document doc : documents) {
+            ChatMessage message = new ChatMessage(
+                    doc.getObjectId("_id"),
+                    doc.getObjectId("sender_id"),
+                    doc.getObjectId("receiver_id"),
+                    doc.getObjectId("group_id"),
+                    doc.getString("content"),
+                    doc.getDate("created_at"),
+                    doc.getBoolean("is_deleted", false)
+            );
+            messages.add(message);
+        }
+
+        return messages;
+    }
+
+    // Lấy tất cả tin nhắn trong nhóm (Chat nhóm)
+    public List<ChatMessage> getMessagesInGroup(ObjectId groupId) {
+        MongoCollection<Document> messagesCollection = database.getCollection("messages");
+        List<ChatMessage> messages = new ArrayList<>();
+
+        // Truy vấn tin nhắn thuộc về nhóm cụ thể
+        FindIterable<Document> documents = messagesCollection.find(
+                Filters.eq("group_id", groupId)
+        ).sort(Sorts.ascending("created_at")); // Sắp xếp theo thời gian tăng dần
+
+        for (Document doc : documents) {
+            ChatMessage message = new ChatMessage(
+                    doc.getObjectId("_id"),
+                    doc.getObjectId("sender_id"),
+                    null, // Chat nhóm không có receiver
+                    doc.getObjectId("group_id"),
+                    doc.getString("content"),
+                    doc.getDate("created_at"),
+                    doc.getBoolean("is_deleted", false)
+            );
+            messages.add(message);
+        }
+
+        return messages;
+    }
+
+    // Gửi tin nhắn mới
+    public void sendMessage(ChatMessage message) {
+        MongoCollection<Document> messagesCollection = database.getCollection("messages");
+
+        // Tạo document tin nhắn từ đối tượng ChatMessage
+        Document messageDoc = new Document()
+                .append("sender_id", message.getSenderId())
+                .append("receiver_id", message.getReceiverId())
+                .append("group_id", message.getGroupId())
+                .append("content", message.getContent())
+                .append("created_at", new Date())
+                .append("is_deleted", false);
+
+        // Thêm tin nhắn vào MongoDB
+        messagesCollection.insertOne(messageDoc);
+    }
+
+    public void saveChatMessage(ChatMessage message) {
+        MongoCollection<Document> messagesCollection = database.getCollection("messages");
+
+        // Tạo Document từ đối tượng ChatMessage
+        Document messageDoc = new Document()
+                .append("sender_id", message.getSenderId())
+                .append("receiver_id", message.getReceiverId())
+                .append("content", message.getContent())
+                .append("created_at", message.getCreatedAt())
+                .append("is_deleted", message.isDeleted());
+
+        // Thêm tin nhắn vào cơ sở dữ liệu
+        messagesCollection.insertOne(messageDoc);
+    }
+
+    public void saveGroupMessage(ChatMessage message) {
+        MongoCollection<Document> messagesCollection = database.getCollection("messages");
+
+        Document messageDoc = new Document()
+                .append("sender_id", message.getSenderId())
+                .append("group_id", message.getGroupId())
+                .append("content", message.getContent())
+                .append("created_at", message.getCreatedAt())
+                .append("is_deleted", message.isDeleted());
+
+        messagesCollection.insertOne(messageDoc);
+    }
+
+
+
+    // Xóa tin nhắn (đánh dấu tin nhắn đã bị xóa)
+    public void deleteMessage(ObjectId messageId) {
+        MongoCollection<Document> messagesCollection = database.getCollection("messages");
+
+        // Cập nhật is_deleted thành true
+        messagesCollection.updateOne(
+                Filters.eq("_id", messageId),
+                new Document("$set", new Document("is_deleted", true))
+        );
+    }
+
+    // Lấy tin nhắn cụ thể theo ID
+    public ChatMessage getMessageById(ObjectId messageId) {
+        MongoCollection<Document> messagesCollection = database.getCollection("messages");
+
+        // Tìm tin nhắn theo ID
+        Document doc = messagesCollection.find(Filters.eq("_id", messageId)).first();
+        if (doc != null) {
+            return new ChatMessage(
+                    doc.getObjectId("_id"),
+                    doc.getObjectId("sender_id"),
+                    doc.getObjectId("receiver_id"),
+                    doc.getObjectId("group_id"),
+                    doc.getString("content"),
+                    doc.getDate("created_at"),
+                    doc.getBoolean("is_deleted", false)
+            );
+        }
+        return null; // Nếu không tìm thấy tin nhắn
+    }
+
+    // Lấy tin nhắn mới nhất (cho hiển thị preview)
+    public ChatMessage getLatestMessage(ObjectId groupIdOrUserId, boolean isGroup) {
+        MongoCollection<Document> messagesCollection = database.getCollection("messages");
+
+        // Truy vấn lấy tin nhắn mới nhất
+        Document filter = isGroup ? new Document("group_id", groupIdOrUserId) :
+                new Document("receiver_id", groupIdOrUserId);
+
+        Document doc = messagesCollection.find(filter)
+                .sort(Sorts.descending("created_at")) // Sắp xếp theo thời gian giảm dần
+                .first();
+
+        if (doc != null) {
+            return new ChatMessage(
+                    doc.getObjectId("_id"),
+                    doc.getObjectId("sender_id"),
+                    doc.getObjectId("receiver_id"),
+                    doc.getObjectId("group_id"),
+                    doc.getString("content"),
+                    doc.getDate("created_at"),
+                    doc.getBoolean("is_deleted", false)
+            );
+        }
+        return null; // Nếu không tìm thấy tin nhắn
+    }
+
+    // Đếm số tin nhắn chưa đọc của người dùng
+    public long countUnreadMessages(ObjectId userId) {
+        MongoCollection<Document> messagesCollection = database.getCollection("messages");
+
+        // Đếm tin nhắn chưa đọc (ví dụ có thêm trường `is_read`, nếu có)
+        return messagesCollection.countDocuments(Filters.and(
+                Filters.eq("receiver_id", userId),
+                Filters.eq("is_read", false)
+        ));
+    }
+
+
 
 
 
@@ -843,6 +1199,33 @@ public class MongoDBConnection implements AutoCloseable {
 
         // Đóng kết nối MongoDB
         mongoDBConnection.close();
+    }
+
+
+    public void createGroup(ObjectId creatorId, ObjectId friendId) {
+        try {
+            MongoCollection<Document> groupsCollection = database.getCollection("groups");
+
+            // Tạo document cho nhóm mới
+            Document newGroup = new Document()
+                    .append("name", "Group with " + creatorId + " and " + friendId)
+                    .append("admin_ids", List.of(creatorId)) // Người tạo là admin
+                    .append("member_ids", List.of(creatorId, friendId)) // Thành viên nhóm bao gồm người tạo và bạn bè
+                    .append("created_at", new Date())
+                    .append("updated_at", new Date())
+                    .append("is_encrypted", false); // Mặc định không mã hóa
+
+            groupsCollection.insertOne(newGroup);
+            System.out.println("Group created successfully!");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public boolean isGroupId(ObjectId id) {
+        MongoCollection<Document> groupCollection = database.getCollection("groups");
+        Document group = groupCollection.find(new Document("_id", id)).first();
+        return group != null; // Nếu tìm thấy trong bảng groups, đây là nhóm
     }
 
 
