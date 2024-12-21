@@ -62,26 +62,32 @@ public class AccountUpdateScreen {
                 // Kiểm tra xem avatarUrl có tồn tại hay không, nếu không sử dụng avatar mặc định
                 Image avatarImage;
 
-
-                        avatarImage = new Image(avatarUrl); // Load từ URL
-
-
+                try {
+                    if (avatarUrl != null && !avatarUrl.isEmpty()) {
+                        avatarImage = new Image(avatarUrl, true); // Tải ảnh từ URL, true để tải không đồng bộ
+                    } else {
+                        // Sử dụng avatar mặc định nếu avatarUrl không hợp lệ
+                        avatarImage = new Image(AccountUpdateScreen.class.getResourceAsStream("/com/example/javaproject/avatar.png"));
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    // Nếu có lỗi, sử dụng avatar mặc định
+                    avatarImage = new Image(AccountUpdateScreen.class.getResourceAsStream("/com/example/javaproject/avatar.png"));
+                }
 
                 ImageView avatar = new ImageView(avatarImage);
                 avatar.setFitHeight(100);
                 avatar.setFitWidth(100);
                 avatar.getStyleClass().add("user-avatar");
 
+
                 Label nameLabel = new Label(username);
                 nameLabel.getStyleClass().add("user-name");
 
                 Label statusLabel = new Label(status);
-                statusLabel.getStyleClass().add("user-status");
+                statusLabel.getStyleClass().add("user-online-status");
 
-                Label onlineStatusLabel = new Label("Online");
-                onlineStatusLabel.getStyleClass().add("user-online-status");
-
-                centerBox.getChildren().addAll(avatar, nameLabel, statusLabel, onlineStatusLabel);
+                centerBox.getChildren().addAll(avatar, nameLabel, statusLabel);
                 header.setCenter(centerBox);
 
                 // Buttons on the Top-Right

@@ -18,6 +18,9 @@ import javafx.stage.Stage;
 import org.bson.types.ObjectId;
 
 import java.io.File;
+import java.io.InputStream;
+import java.net.URI;
+import java.nio.file.Paths;
 import java.util.List;
 
 public class FriendRequestsInterface {
@@ -92,14 +95,29 @@ public class FriendRequestsInterface {
      */
     private HBox createFriendRequestItem(String avatarPath, String name, User user) {
         ImageView avatar;
+
         try {
-            if (avatarPath.startsWith("http") || avatarPath.startsWith("https")) {
-                avatar = new ImageView(new Image(avatarPath));
+            if (avatarPath != null && !avatarPath.trim().isEmpty() && !avatarPath.equals("d")) {
+                if (avatarPath.startsWith("http") || avatarPath.startsWith("https")) {
+                    avatar = new ImageView(new Image(avatarPath));
+                } else if (avatarPath.startsWith("file:/") || avatarPath.contains(":")) {
+                    avatar = new ImageView(new Image(Paths.get(new URI(avatarPath)).toUri().toString()));
+                } else {
+                    InputStream resourceStream = getClass().getResourceAsStream(avatarPath);
+                    if (resourceStream == null) {
+                        throw new IllegalArgumentException("Resource not found: " + avatarPath);
+                    }
+                    avatar = new ImageView(new Image(resourceStream));
+                }
             } else {
-                avatar = new ImageView(new Image(new File(avatarPath).toURI().toString()));
+                avatar = getDefaultAvatar();
             }
+        } catch (IllegalArgumentException e) {
+            System.err.println(e.getMessage());
+            avatar = getDefaultAvatar();
         } catch (Exception e) {
-            avatar = new ImageView(new Image(getClass().getResourceAsStream("/com/example/javaproject/avatar.png")));
+            e.printStackTrace();
+            avatar = getDefaultAvatar();
         }
         avatar.setFitHeight(40);
         avatar.setFitWidth(40);
@@ -139,6 +157,10 @@ public class FriendRequestsInterface {
         return itemBox;
     }
 
+    private ImageView getDefaultAvatar() {
+        return new ImageView(new Image(getClass().getResourceAsStream("/com/example/javaproject/avatar.png")));
+    }
+
     /**
      * Filter the friend requests list based on search text.
      */
@@ -156,4 +178,8 @@ public class FriendRequestsInterface {
             friendRequestsList.setItems(filteredList);
         }
     }
+
+
+
+
 }

@@ -1,9 +1,9 @@
 package com.example.javaproject;
 
-import java.util.Date;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
+
+import org.bson.BasicBSONObject;
+import org.bson.Document;
 import org.bson.types.ObjectId;
 
 public class User {
@@ -17,10 +17,14 @@ public class User {
     private String gender;
     private String email;
     private String status;
+    private Boolean isLocked;
     private List<ObjectId> friends;  // Mảng chứa các ObjectId của bạn bè
     private List<ObjectId> blockedUsers; // Mảng chứa các ObjectId của người dùng bị chặn
     private Date createdAt;
     private Date updatedAt;
+
+    public User() {
+    }
 
     // Constructor
     public User(ObjectId _id, String username, String password, String avatarUrl, String fullName, String address,
@@ -40,7 +44,9 @@ public class User {
         this.blockedUsers = blockedUsers;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
+        this.isLocked = false;
     }
+
 
     // Getter và setter
     public ObjectId getId() {
@@ -67,16 +73,14 @@ public class User {
         this.password = password;
     }
 
-    public String getFullName() {
-        return fullName;
-    }
+    public String getFullName() {return fullName != null ? fullName : "";}
 
     public void setFullName(String fullName) {
         this.fullName = fullName;
     }
 
     public String getAddress() {
-        return address;
+        return address != null ? address : "";
     }
 
     public void setAddress(String address) {
@@ -84,7 +88,7 @@ public class User {
     }
 
     public String getBirthDate() {
-        return birthDate;
+        return birthDate != null ? birthDate : "";
     }
 
     public void setBirthDate(String birthDate) {
@@ -92,7 +96,7 @@ public class User {
     }
 
     public String getGender() {
-        return gender;
+        return gender != null ? gender : "";
     }
 
     public void setGender(String gender) {
@@ -107,9 +111,7 @@ public class User {
         this.email = email;
     }
 
-    public String getStatus() {
-        return status;
-    }
+    public String getStatus() { return status != null ? status : "Offline" ; }
 
     public void setStatus(String status) {
         this.status = status;
@@ -131,6 +133,15 @@ public class User {
         this.blockedUsers = blockedUsers;
     }
 
+    public boolean isLocked() {
+        return isLocked != null ? isLocked : false;
+    }
+
+    public void setLocked(boolean locked) {
+        isLocked = locked;
+    }
+
+
     public Date getCreatedAt() {
         return createdAt;
     }
@@ -148,20 +159,28 @@ public class User {
     }
 
     public int getTotalFriends(MongoDBConnection mongoDBConnection) {
-        // Lấy danh sách bạn bè trực tiếp
-        Set<ObjectId> totalFriendsSet = new HashSet<>(friends);  // Set để loại bỏ trùng lặp
+        if (friends == null) {
+            return 0;
+        }
+
+        Set<ObjectId> totalFriendsSet = new HashSet<>(friends); // Set để loại bỏ trùng lặp
 
         // Lấy bạn bè của những người bạn (bạn bè của bạn)
         for (ObjectId friendId : friends) {
             List<User> friendUsers = mongoDBConnection.fetchUsersByFriend(friendId);
-            for (User friend : friendUsers) {
-                totalFriendsSet.addAll(friend.getFriends());  // Thêm bạn bè của người bạn vào
+            if (friendUsers != null) { // Kiểm tra null cho friendUsers
+                for (User friend : friendUsers) {
+                    if (friend.getFriends() != null) { // Kiểm tra null cho bạn bè của người bạn
+                        totalFriendsSet.addAll(friend.getFriends()); // Thêm bạn bè của người bạn vào
+                    }
+                }
             }
         }
 
         // Trả về tổng số bạn bè (bao gồm bạn bè của bạn bè)
         return totalFriendsSet.size();
     }
+
 
     public int getDirectFriends() {
         return friends != null ? friends.size() : 0;

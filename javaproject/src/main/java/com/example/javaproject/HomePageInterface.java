@@ -11,10 +11,15 @@ import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.stage.Stage;
+
+import java.net.InetAddress;
+import java.net.UnknownHostException;
+import java.util.Date;
 import java.util.Random;
 import org.bson.Document;
 import java.util.Optional;
 import javafx.scene.text.FontWeight;
+import org.bson.types.ObjectId;
 import java.util.Properties;
 import javax.mail.*;
 import javax.mail.internet.*;
@@ -100,11 +105,51 @@ public class HomePageInterface extends Application {
             try (MongoDBConnection mongoDBConnection = new MongoDBConnection()) {
                 Document user = mongoDBConnection.authenticateUser(email, password);
                 if (user != null) {
+                    // Kiểm tra xem tài khoản có bị khóa hay không
+                    boolean isLocked = user.getBoolean("is_locked", false); // Mặc định là không khóa nếu trường này không tồn tại
+                    if (isLocked) {
+                        // Hiển thị thông báo lỗi nếu tài khoản bị khóa
+                        Alert alert = new Alert(Alert.AlertType.ERROR);
+                        alert.setTitle("Account Locked");
+                        alert.setHeaderText(null);
+                        alert.setContentText("Your account has been locked. Please contact support.");
+                        alert.showAndWait();
+                        return;
+                    }
+
                     // Lưu thông tin người dùng vào UserSession
                     UserSession session = UserSession.getInstance();
                     session.setUserId(user.getObjectId("_id"));
                     session.setUsername(user.getString("username"));
                     session.setEmail(user.getString("email"));
+
+                    ObjectId userId = user.getObjectId("_id");
+                    String ipAddress = getIPAddress();
+                    Date loginTime = new Date();
+
+                    // Lưu lịch sử đăng nhập
+                    LoginHistory loginHistory = new LoginHistory(new ObjectId(), userId, ipAddress, loginTime);
+                    Document loginHistoryDoc = new Document("_id", loginHistory.getId())
+                            .append("user_id", loginHistory.getUserId())
+                            .append("ip_address", loginHistory.getIpAddress())
+                            .append("login_time", loginHistory.getLoginTime());
+
+                    MongoCollection<Document> loginHistoryCollection = mongoDBConnection.getDatabase().getCollection("login_history");
+                    loginHistoryCollection.insertOne(loginHistoryDoc);
+
+                    ActivityLog activityLog = new ActivityLog(new ObjectId(), userId, "login", null, new Date());
+                    Document activityLogDoc = new Document("_id", activityLog.getId())
+                            .append("user_id", activityLog.getUserId())
+                            .append("action", "login")
+                            .append("created_at", new Date());
+
+                    MongoCollection<Document> activityCollection = mongoDBConnection.getDatabase().getCollection("activity_logs");
+                    activityCollection.insertOne(activityLogDoc);
+
+                    // Cập nhật trạng thái hoạt động thành online
+                    mongoDBConnection.setStatus(userId,"Online");
+
+
                     // Điều hướng đến giao diện ChatApp
                     ChatAppInterface chatAppInterface = new ChatAppInterface();
                     Stage chatStage = new Stage();
@@ -300,6 +345,16 @@ public class HomePageInterface extends Application {
                     alert.showAndWait();
                 }
             }
+        }
+    }
+
+    private String getIPAddress() {
+        try {
+            InetAddress inetAddress = InetAddress.getLocalHost();
+            return inetAddress.getHostAddress();
+        } catch (UnknownHostException e) {
+            e.printStackTrace();
+            return "Unknown";
         }
     }
 
