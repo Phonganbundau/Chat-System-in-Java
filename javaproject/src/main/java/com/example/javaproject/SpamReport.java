@@ -21,6 +21,10 @@ public class SpamReport {
         this.created_at = created_at;
     }
 
+    public SpamReport() {
+
+    }
+
     // Getters and Setters
     public ObjectId get_id() {
         return _id;

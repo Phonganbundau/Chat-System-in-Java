@@ -172,7 +172,7 @@ public class AdminPanelInterface extends Application {
         filterFullNameField.setPromptText("Lọc theo Tên đầy đủ");
         ComboBox<String> filterStatusComboBox = new ComboBox<>();
         filterStatusComboBox.setPromptText("Lọc theo Trạng thái");
-        filterStatusComboBox.setItems(FXCollections.observableArrayList("Active", "Locked"));
+        filterStatusComboBox.setItems(FXCollections.observableArrayList("Online", "Offline"));
         Button applyUserFilterButton = new Button("Áp dụng");
 
         applyUserFilterButton.setOnAction(e -> applyUserFilter(filterUsernameField.getText(), filterFullNameField.getText(), filterStatusComboBox.getValue()));
@@ -779,23 +779,12 @@ public class AdminPanelInterface extends Application {
         List<UserWithFriends> userWithFriendsList = new ArrayList<>();
 
         for (User user : users) {
-            int directFriends = user.getFriends() != null ? user.getFriends().size() : 0;
+            int directFriends = user.getDirectFriends();
 
-            // Fetch friends of friends
-            Set<ObjectId> friendsOfFriends = new HashSet<>();
-            for (ObjectId friendId : user.getFriends()) {
-                List<User> friendUsers = mongoDBConnection.fetchUsersByFriend(friendId);
-                for (User friend : friendUsers) {
-                    friendsOfFriends.add(friend.getId());
-                }
-            }
-            // Remove userId from friendsOfFriends list to avoid showing the user themselves
-            friendsOfFriends.remove(user.getId());
-
-            int friendsOfFriendsCount = friendsOfFriends.size();
+            int friendsOfFriends= user.getTotalFriends(new MongoDBConnection());
 
             // Add to the list to display in TableView
-            userWithFriendsList.add(new UserWithFriends(user.getUsername(), directFriends, friendsOfFriendsCount));
+            userWithFriendsList.add(new UserWithFriends(user.getUsername(), directFriends, friendsOfFriends));
         }
 
         // Set the data for TableView
@@ -848,18 +837,21 @@ public class AdminPanelInterface extends Application {
         for (User user : allUsers) {
             boolean matches = true;
 
-            // Kiểm tra nếu tên đăng nhập trùng
-            if (username != null && !username.isEmpty() && !user.getUsername().toLowerCase().contains(username.toLowerCase())) {
+            // Kiểm tra nếu tên đăng nhập trùng (kiểm tra null trước)
+            String userUsername = user.getUsername() != null ? user.getUsername() : "";
+            if (username != null && !username.isEmpty() && !userUsername.toLowerCase().contains(username.toLowerCase())) {
                 matches = false;
             }
 
-            // Kiểm tra nếu tên đầy đủ trùng
-            if (fullName != null && !fullName.isEmpty() && !user.getFullName().toLowerCase().contains(fullName.toLowerCase())) {
+            // Kiểm tra nếu tên đầy đủ trùng (kiểm tra null trước)
+            String userFullName = user.getFullName() != null ? user.getFullName() : "";
+            if (fullName != null && !fullName.isEmpty() && !userFullName.toLowerCase().contains(fullName.toLowerCase())) {
                 matches = false;
             }
 
-            // Kiểm tra nếu trạng thái trùng
-            if (status != null && !status.isEmpty() && !user.getStatus().equalsIgnoreCase(status)) {
+            // Kiểm tra nếu trạng thái trùng (kiểm tra null trước)
+            String userStatus = user.getStatus() != null ? user.getStatus() : "";
+            if (status != null && !status.isEmpty() && !userStatus.equalsIgnoreCase(status)) {
                 matches = false;
             }
 
@@ -873,6 +865,7 @@ public class AdminPanelInterface extends Application {
         ObservableList<User> filteredData = FXCollections.observableArrayList(filteredUsers);
         userTable.setItems(filteredData);
     }
+
 
 
     /**
@@ -1308,7 +1301,7 @@ public class AdminPanelInterface extends Application {
 
         // Cấu hình các ComboBox
         filterGenderComboBox.getItems().addAll("Male", "Female", "Other");
-        filterStatusComboBox.getItems().addAll("Active", "Inactive");
+        filterStatusComboBox.getItems().addAll("Online", "Offline");
 
         // Tạo nút "Thêm người dùng"
         Button addButton = new Button("Thêm người dùng");
@@ -1437,7 +1430,7 @@ public class AdminPanelInterface extends Application {
 
         // Cấu hình các ComboBox
         filterGenderComboBox.getItems().addAll("Male", "Female", "Other");
-        filterStatusComboBox.getItems().addAll("Active", "Inactive");
+        filterStatusComboBox.getItems().addAll("Online", "Offline");
 
         // Chọn giá trị mặc định cho ComboBox
         filterGenderComboBox.setValue(selectedUser.getGender());
@@ -1640,11 +1633,11 @@ public class AdminPanelInterface extends Application {
         }
 
         // Kiểm tra trạng thái hiện tại của người dùng
-        String currentStatus = selectedUser.getStatus();
-        String newStatus = currentStatus.equals("Active") ? "Inactive" : "Active"; // Đổi trạng thái
+        boolean currentStatus = selectedUser.isLocked();
+        boolean newStatus = currentStatus == false ? true : false; // Đổi trạng thái
 
         // Cập nhật đối tượng User với trạng thái mới
-        selectedUser.setStatus(newStatus);
+        selectedUser.setLocked(newStatus);
 
         // Cập nhật trong cơ sở dữ liệu MongoDB
         MongoDBConnection mongoDBConnection = new MongoDBConnection();
@@ -1652,7 +1645,7 @@ public class AdminPanelInterface extends Application {
         mongoDBConnection.close();
 
         // Hiển thị thông báo thành công
-        showAlert("Thành công", "Người dùng đã được " + (newStatus.equals("Active") ? "mở khóa" : "khóa") + " thành công!", Alert.AlertType.INFORMATION);
+        showAlert("Thành công", "Người dùng đã được " + (newStatus == false ? "mở khóa" : "khóa") + " thành công!", Alert.AlertType.INFORMATION);
     }
 
     /**

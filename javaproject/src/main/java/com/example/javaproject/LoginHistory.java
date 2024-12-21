@@ -43,7 +43,7 @@ public class LoginHistory {
     }
 
     public Date getLoginTime() {
-        return loginTime;
+        return loginTime != null ? loginTime : new Date();
     }
 
     public void setLoginTime(Date loginTime) {

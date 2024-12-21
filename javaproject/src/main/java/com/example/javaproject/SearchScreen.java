@@ -14,17 +14,25 @@ import javafx.stage.Stage;
 import org.bson.types.ObjectId;
 
 import java.io.File;
+import java.io.InputStream;
+import java.net.URI;
+import java.nio.file.Paths;
 import java.util.List;
+
 
 public class SearchScreen {
     private ObservableList<HBox> searchResultsData;
     private ListView<HBox> searchResultsList;
     private TextField searchField;
+    private MongoDBConnection dbConnection; // Kết nối MongoDB duy nhất
+
+    public SearchScreen() {
+        // Khởi tạo kết nối MongoDB
+        dbConnection = new MongoDBConnection();
+    }
 
     public void start(Stage primaryStage) {
         BorderPane root = new BorderPane();
-
-
 
         // Title
         Label titleLabel = new Label("Search People");
@@ -58,14 +66,23 @@ public class SearchScreen {
         scene.getStylesheets().add(getClass().getResource("/com/example/javaproject/style_for_search.css").toExternalForm());
         primaryStage.setTitle("Search People");
         primaryStage.setScene(scene);
+
+        // Đảm bảo đóng kết nối MongoDB khi ứng dụng đóng
+        primaryStage.setOnCloseRequest(event -> closeMongoConnection());
+
         primaryStage.show();
     }
 
     private void loadInitialData() {
-        try (MongoDBConnection dbConnection = new MongoDBConnection()) {
+        try {
+            ObjectId currentUserId = UserSession.getInstance().getUserId();
             List<User> allUsers = dbConnection.fetchUsers(); // Lấy toàn bộ danh sách người dùng
+
             for (User user : allUsers) {
-                searchResultsData.add(createSearchResultItem(user.getAvatarUrl(), user.getFullName(), user.getUsername(), user.getId()));
+                // Kiểm tra những người đã block
+                if (!dbConnection.checkBlockStatus(user.getId(), currentUserId)) {
+                    searchResultsData.add(createSearchResultItem(user.getAvatarUrl(), user.getFullName(), user.getUsername(), user.getId()));
+                }
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -73,20 +90,33 @@ public class SearchScreen {
     }
 
     private HBox createSearchResultItem(String avatarPath, String name, String username, ObjectId userId) {
+
         ImageView avatar;
+
         try {
-            if (avatarPath != null && !avatarPath.isEmpty()) {
+            if (avatarPath != null && !avatarPath.trim().isEmpty() && !avatarPath.equals("d")) {
                 if (avatarPath.startsWith("http") || avatarPath.startsWith("https")) {
-                    avatar = new ImageView(new Image(avatarPath)); // Nếu là URL hợp lệ
+                    avatar = new ImageView(new Image(avatarPath));
+                } else if (avatarPath.startsWith("file:/") || avatarPath.contains(":")) {
+                    avatar = new ImageView(new Image(Paths.get(new URI(avatarPath)).toUri().toString()));
                 } else {
-                    avatar = new ImageView(new Image(new File(avatarPath).toURI().toString())); // Nếu là đường dẫn nội bộ
+                    InputStream resourceStream = getClass().getResourceAsStream(avatarPath);
+                    if (resourceStream == null) {
+                        throw new IllegalArgumentException("Resource not found: " + avatarPath);
+                    }
+                    avatar = new ImageView(new Image(resourceStream));
                 }
             } else {
-                avatar = new ImageView(new Image(getClass().getResourceAsStream("/com/example/javaproject/avatar.png"))); // Ảnh mặc định
+                avatar = getDefaultAvatar();
             }
+        } catch (IllegalArgumentException e) {
+            System.err.println(e.getMessage());
+            avatar = getDefaultAvatar();
         } catch (Exception e) {
-            avatar = new ImageView(new Image(getClass().getResourceAsStream("/com/example/javaproject/avatar.png"))); // Nếu có lỗi, sử dụng ảnh mặc định
+            e.printStackTrace();
+            avatar = getDefaultAvatar();
         }
+
         avatar.setFitHeight(40);
         avatar.setFitWidth(40);
         avatar.getStyleClass().add("avatar");
@@ -107,7 +137,6 @@ public class SearchScreen {
             ChatAppInterface chatInterface = new ChatAppInterface();
             Stage chatStage = new Stage();
             try {
-                MongoDBConnection dbConnection = new MongoDBConnection();
                 User user = dbConnection.getUserById(userId);
                 chatInterface.setTargetUser(user);
                 chatInterface.setCurrentChatReceiverId(userId);
@@ -117,21 +146,20 @@ public class SearchScreen {
             }
         });
 
-        // Add Friend Button
         Button addFriendButton = new Button("Add Friend");
         Button createGroupButton = new Button("Create Group");
-        try (MongoDBConnection dbConnection = new MongoDBConnection()) {
+
+        try {
             ObjectId currentUserId = UserSession.getInstance().getUserId();
-            boolean isFriend = dbConnection.checkFriendStatus(currentUserId, userId); // Kiểm tra xem đã là bạn bè chưa
+            boolean isFriend = dbConnection.checkFriendStatus(currentUserId, userId);
 
             if (isFriend) {
-                addFriendButton.setVisible(false); // Ẩn nút Add Friend nếu đã là bạn
+                addFriendButton.setVisible(false);
                 addFriendButton.setManaged(false);
 
-                // Nếu là bạn bè, cho phép tạo nhóm
                 createGroupButton.setOnAction(e -> {
                     try {
-                        dbConnection.createGroup(currentUserId, userId); // Gọi phương thức để tạo nhóm
+                        dbConnection.createGroup(currentUserId, userId);
                         Alert alert = new Alert(Alert.AlertType.INFORMATION);
                         alert.setTitle("Group Created");
                         alert.setHeaderText(null);
@@ -139,22 +167,16 @@ public class SearchScreen {
                         alert.showAndWait();
                     } catch (Exception ex) {
                         ex.printStackTrace();
-                        Alert alert = new Alert(Alert.AlertType.ERROR);
-                        alert.setTitle("Error");
-                        alert.setHeaderText(null);
-                        alert.setContentText("Failed to create group.");
-                        alert.showAndWait();
                     }
                 });
             } else {
-                // Nếu không phải bạn bè, ẩn nút Create Group
                 createGroupButton.setVisible(false);
                 createGroupButton.setManaged(false);
             }
 
             addFriendButton.setOnAction(e -> {
                 try {
-                    dbConnection.sendFriendRequest(currentUserId, userId); // Gửi yêu cầu kết bạn
+                    dbConnection.sendFriendRequest(currentUserId, userId);
                     Alert alert = new Alert(Alert.AlertType.INFORMATION);
                     alert.setTitle("Friend Request Sent");
                     alert.setHeaderText(null);
@@ -162,39 +184,35 @@ public class SearchScreen {
                     alert.showAndWait();
                 } catch (Exception ex) {
                     ex.printStackTrace();
-                    Alert alert = new Alert(Alert.AlertType.ERROR);
-                    alert.setTitle("Error");
-                    alert.setHeaderText(null);
-                    alert.setContentText("Failed to send friend request.");
-                    alert.showAndWait();
                 }
             });
         } catch (Exception e) {
             e.printStackTrace();
         }
 
-        // VBox chứa tên và username
+
         VBox nameBox = new VBox(nameLabel, usernameLabel);
         nameBox.setSpacing(5);
 
-        // HBox chứa các thành phần
         HBox itemBox = new HBox(10, avatar, nameBox, addFriendButton, chatButton, createGroupButton);
         itemBox.setAlignment(Pos.CENTER_LEFT);
         itemBox.setPadding(new Insets(5));
         return itemBox;
     }
 
-
-
     private void filterSearchResults(String searchText) {
         if (searchText.isEmpty()) {
             searchResultsList.setItems(searchResultsData);
         } else {
             ObservableList<HBox> filteredList = FXCollections.observableArrayList();
-            try (MongoDBConnection dbConnection = new MongoDBConnection()) {
+            try {
+                ObjectId currentUserId = UserSession.getInstance().getUserId();
                 List<User> filteredUsers = dbConnection.searchUsersByKeyword(searchText);
+
                 for (User user : filteredUsers) {
-                    filteredList.add(createSearchResultItem(user.getAvatarUrl(), user.getFullName(), user.getUsername(), user.getId()));
+                    if (!dbConnection.checkBlockStatus(user.getId(), currentUserId)) {
+                        filteredList.add(createSearchResultItem(user.getAvatarUrl(), user.getFullName(), user.getUsername(), user.getId()));
+                    }
                 }
             } catch (Exception e) {
                 e.printStackTrace();
@@ -202,4 +220,16 @@ public class SearchScreen {
             searchResultsList.setItems(filteredList);
         }
     }
+
+    private ImageView getDefaultAvatar() {
+        return new ImageView(new Image(getClass().getResourceAsStream("/com/example/javaproject/avatar.png")));
+    }
+
+
+    private void closeMongoConnection() {
+        if (dbConnection != null) {
+            dbConnection.close();
+        }
+    }
 }
+

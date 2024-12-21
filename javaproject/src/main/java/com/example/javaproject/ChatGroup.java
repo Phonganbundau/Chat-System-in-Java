@@ -1,6 +1,8 @@
 package com.example.javaproject;
 
 import org.bson.types.ObjectId;
+
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
@@ -22,6 +24,19 @@ public class ChatGroup {
         this.createdAt = createdAt;
         this.isEncrypted = false; // Default value for encryption
         this.updatedAt = new Date(); // Initially, updatedAt is the current time
+        this.memberIds = new ArrayList<>();
+        this.adminIds = new ArrayList<>();
+    }
+
+    // Constructor mở rộng
+    public ChatGroup(ObjectId id, String groupName, List<ObjectId> memberIds, List<ObjectId> adminIds,
+                     Date createdAt, Date updatedAt, boolean isEncrypted) {
+        this.groupName = groupName;
+        this.memberIds = memberIds != null ? memberIds : new ArrayList<>();
+        this.adminIds = adminIds != null ? adminIds : new ArrayList<>();
+        this.isEncrypted = isEncrypted;
+        this.createdAt = createdAt;
+        this.updatedAt = updatedAt;
     }
 
     // Getter and Setter methods
@@ -94,7 +109,22 @@ public class ChatGroup {
                 '}';
     }
 
-    public String getGroupAvatarUrl() {
-        return groupName;
+
+
+    public List<String> getMemberUsernames() {
+        List<String> usernames = new ArrayList<>();
+        try (MongoDBConnection dbConnection = new MongoDBConnection()) {
+            for (ObjectId memberId : memberIds) {
+                User user = dbConnection.getUserById(memberId);
+                if (user != null) {
+                    usernames.add(user.getUsername());
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return usernames;
     }
+
+
 }
