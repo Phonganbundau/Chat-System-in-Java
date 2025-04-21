@@ -108,7 +108,7 @@ The Chat System is a comprehensive platform that offers real-time communication 
 - **Programming Language**: Java
 - **Database**: MongoDB
 - **Frameworks & Libraries**:
-  - [Spring Boot](https://spring.io/projects/spring-boot) for application development
+  - [Java Core] for application development
   - [MongoDB Java Driver](https://mongodb.github.io/mongo-java-driver/) for database interactions
   - [WebSocket](https://spring.io/guides/gs/messaging-stomp-websocket/) for real-time communication
 
